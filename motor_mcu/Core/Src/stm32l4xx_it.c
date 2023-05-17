@@ -254,16 +254,87 @@ extern float  pos[2];
 extern float  pos_new[2];
 extern float  pos_prev[2];
 
+enum DIR{
+    DIR_PLUS,
+    DIR_MINUS
+};
+
+enum STEPPER_STATUS{
+    ENABLED,
+    DISABLED
+};
+
+static float K = 0.0393;
+
+static int x_dir = DIR_PLUS;
+static int y_dir = DIR_PLUS;
+static int x_en = DISABLED;
+static int x_en = DISABLED;
+
+static int x_step = 0;
+static int y_step = 0;
+static int x_des_pos = 0;
+static int y_des_pos = 0;
+
+static int x_speed = 10000;
+static int y_speed = 10000;
+
+static void ES_STOP(){
+    HAL_TIM_Base_Stop_IT(&htim6);
+    HAL_GPIO_WritePin(X_EN_GPIO_Port, X_EN_Pin ,GPIO_PIN_SET);
+    HAL_GPIO_WritePin(Y_EN_GPIO_Port, Y_EN_Pin ,GPIO_PIN_SET);
+    while(1){
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+        HAL_Delay(1000);
+    };
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     static int iter = 0;
-    HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
-    HAL_GPIO_TogglePin(X_DIR_GPIO_Port,  X_DIR_Pin );
-    HAL_GPIO_TogglePin(X_EN_GPIO_Port,   X_EN_Pin  );
 
-    HAL_GPIO_TogglePin(Y_STEP_GPIO_Port, Y_STEP_Pin);
-    HAL_GPIO_TogglePin(Y_DIR_GPIO_Port,  Y_DIR_Pin );
-    HAL_GPIO_TogglePin(Y_EN_GPIO_Port,   Y_EN_Pin  );
+    static int x_v = 0;
+    static int y_v = 0;
+
+    x_v %= x_speed;
+    y_v %= y_speed;
+
+    // Step
+    if (x_step != x_des_pos){
+        if (x_en == ENABLED){
+            if (!x_v){
+                HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
+                switch (x_dir)
+                {
+                case DIR_PLUS:
+                    x_step++;
+                    break;
+                case DIR_MINUS:
+                    x_step--;
+                    break;
+                }
+            }
+        }
+    }
+    if (y_step != y_des_pos){
+        if (y_en == ENABLED){
+            if (!y_v){
+                HAL_GPIO_TogglePin(Y_STEP_GPIO_Port, Y_STEP_Pin);
+                switch (y_dir)
+                {
+                case DIR_PLUS:
+                    y_step++;
+                    break;
+                case DIR_MINUS:
+                    y_step--;
+                    break;
+                }
+            }
+        }
+    }
+
+    x_v++;
+    y_v++;
 
 
     iter %= 2000;
@@ -280,15 +351,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         static float by = -0.8702;
         static float cy =  230.7;
 
-        if (volt_dist[0]>2.2)
-            volt_dist[0] = 2.2;
-        else if (volt_dist[0]<0.45)
-            volt_dist[0] = 0.45;
+        if (volt_dist[0]>2.2){
+            ES_STOP();
+            //volt_dist[0] = 2.2;
+        }
+        else if (volt_dist[0]<0.45){
+            ES_STOP();
+            //volt_dist[0] = 0.45;
+        }
 
-        if (volt_dist[1]>1.8)
-            volt_dist[1] = 1.8;
-        else if (volt_dist[1]<0.65)
-            volt_dist[1] = 0.65;
+        if (volt_dist[1]>1.8){
+            ES_STOP();
+            //volt_dist[1] = 1.8;
+        }
+        else if (volt_dist[1]<0.65){
+            ES_STOP();
+            //volt_dist[1] = 0.65;
+        }
 
         pos_new[0] = ax*pow(volt_dist[0],bx) + cx;
         pos_new[1] = ay*pow(volt_dist[1],by) + cy;
@@ -332,6 +411,48 @@ extern motor_status_struct IN_motor_status;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+    x_des_pos = (int)((IN_motor_status.pos[0])/K);
+    y_des_pos = (int)((IN_motor_status.pos[1])/K);
+    x_speed   = (int)(25000/(IN_motor_status.vel[0]/K));
+    y_speed   = (int)(25000/(IN_motor_status.vel[1]/K));
+
+    if(x_speed > 0){
+        x_dir = DIR_PLUS;
+    } else {
+        x_dir = DIR_MINUS;
+    }
+    if(y_speed > 0){
+        y_dir = DIR_PLUS;
+    } else {
+        y_dir = DIR_MINUS;
+    }
+
+    x_speed = abs(x_speed);
+    y_speed = abs(y_speed);
+
+
+    // Direction
+    if (x_dir == DIR_PLUS)
+        HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_RESET);
+
+    if (y_dir == DIR_PLUS)
+        HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_RESET);
+
+    // Enable
+    if (x_en == ENABLED)
+        HAL_GPIO_WritePin(X_EN_GPIO_Port,  X_EN_Pin ,GPIO_PIN_RESET);
+    else
+        HAL_GPIO_WritePin(X_EN_GPIO_Port,  X_EN_Pin ,GPIO_PIN_SET);
+    if (y_en == ENABLED)
+        HAL_GPIO_WritePin(Y_EN_GPIO_Port,  Y_EN_Pin ,GPIO_PIN_RESET);
+    else
+        HAL_GPIO_WritePin(Y_EN_GPIO_Port,  Y_EN_Pin ,GPIO_PIN_SET);
+
+
     static int i = 0;
     OUT_motor_status.pos[0] = pos[0];
     OUT_motor_status.vel[0] = 50.0*sin(2.0*M_PI*0.001*i + M_PI/3.0);
