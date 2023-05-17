@@ -73,8 +73,10 @@ static void MX_TIM6_Init(void);
 
 
 uint32_t adc_out[2] = {0};
-float  volt_dist[2] = {0};
+float  volt_dist[2] = {0.5,0.5};
 float  pos[2] = {0};
+float  pos_new[2] = {0};
+float  pos_prev[2] = {0};
 
 motor_status_struct OUT_motor_status = {0};
 motor_status_struct IN_motor_status  = {0};
@@ -124,6 +126,7 @@ int main(void)
   HAL_UART_Receive_IT(&huart4, (uint8_t*)&IN_motor_status, sizeof(motor_status_struct));
 
   HAL_TIM_Base_Start_IT(&htim6);
+
 
 
   /* USER CODE END 2 */
@@ -287,9 +290,9 @@ static void MX_TIM6_Init(void)
 
   /* USER CODE END TIM6_Init 1 */
   htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 7999;
+  htim6.Init.Prescaler = 39;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 399;
+  htim6.Init.Period = 39;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
@@ -409,7 +412,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LD2_Pin|st_ADC_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LD2_Pin|st_ADC_Pin|Y_DIR_Pin|Y_STEP_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(X_EN_GPIO_Port, X_EN_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(Y_EN_GPIO_Port, Y_EN_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, X_DIR_Pin|X_STEP_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(st_UART_GPIO_Port, st_UART_Pin, GPIO_PIN_RESET);
@@ -427,19 +439,26 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : st_ADC_Pin */
-  GPIO_InitStruct.Pin = st_ADC_Pin;
+  /*Configure GPIO pins : X_EN_Pin X_DIR_Pin X_STEP_Pin */
+  GPIO_InitStruct.Pin = X_EN_Pin|X_DIR_Pin|X_STEP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(st_ADC_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : st_UART_Pin */
-  GPIO_InitStruct.Pin = st_UART_Pin;
+  /*Configure GPIO pins : Y_EN_Pin st_UART_Pin */
+  GPIO_InitStruct.Pin = Y_EN_Pin|st_UART_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(st_UART_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : st_ADC_Pin Y_DIR_Pin Y_STEP_Pin */
+  GPIO_InitStruct.Pin = st_ADC_Pin|Y_DIR_Pin|Y_STEP_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
 

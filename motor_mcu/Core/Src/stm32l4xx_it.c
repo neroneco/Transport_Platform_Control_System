@@ -251,26 +251,59 @@ volatile int adc_conv_complate = 0;
 volatile static uint32_t adc_out[2];
 extern float  volt_dist[2];
 extern float  pos[2];
+extern float  pos_new[2];
+extern float  pos_prev[2];
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    HAL_GPIO_TogglePin(st_UART_GPIO_Port, st_UART_Pin);
+    static int iter = 0;
+    HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
+    HAL_GPIO_TogglePin(X_DIR_GPIO_Port,  X_DIR_Pin );
+    HAL_GPIO_TogglePin(X_EN_GPIO_Port,   X_EN_Pin  );
 
-    volt_dist[0] = 0.0008056640625f * (float)adc_out[0];
-    volt_dist[1] = 0.0008056640625f * (float)adc_out[1];
-    static float ax = -319.6;
-    static float bx = -0.7314;
-    static float cx =  374.9;
-    static float ay = -230.5;
-    static float by = -0.8702;
-    static float cy =  230.7;
+    HAL_GPIO_TogglePin(Y_STEP_GPIO_Port, Y_STEP_Pin);
+    HAL_GPIO_TogglePin(Y_DIR_GPIO_Port,  Y_DIR_Pin );
+    HAL_GPIO_TogglePin(Y_EN_GPIO_Port,   Y_EN_Pin  );
 
-    pos[0] = ax*pow(volt_dist[0],bx) + cx;
-    pos[1] = ay*pow(volt_dist[1],by) + cy;
 
-    HAL_ADC_Start_DMA(&hadc1, adc_out, 2);
+    iter %= 2000;
+    if (!iter) {
+        HAL_GPIO_TogglePin(st_UART_GPIO_Port, st_UART_Pin);
+        HAL_TIM_Base_Stop_IT(&htim6);
 
-    HAL_GPIO_TogglePin(st_UART_GPIO_Port, st_UART_Pin);
+        volt_dist[0] = 0.0008056640625f * (float)adc_out[0];
+        volt_dist[1] = 0.0008056640625f * (float)adc_out[1];
+        static float ax = -319.6;
+        static float bx = -0.7314;
+        static float cx =  374.9;
+        static float ay = -230.5;
+        static float by = -0.8702;
+        static float cy =  230.7;
+
+        if (volt_dist[0]>2.2)
+            volt_dist[0] = 2.2;
+        else if (volt_dist[0]<0.45)
+            volt_dist[0] = 0.45;
+
+        if (volt_dist[1]>1.8)
+            volt_dist[1] = 1.8;
+        else if (volt_dist[1]<0.65)
+            volt_dist[1] = 0.65;
+
+        pos_new[0] = ax*pow(volt_dist[0],bx) + cx;
+        pos_new[1] = ay*pow(volt_dist[1],by) + cy;
+
+        static float alpha = 0.15;
+        pos[0] = (1.0-alpha)*pos_prev[0] + alpha*pos_new[0];
+        pos[1] = (1.0-alpha)*pos_prev[1] + alpha*pos_new[1];
+        pos_prev[0] = pos[0];
+        pos_prev[1] = pos[1];
+
+        HAL_ADC_Start_DMA(&hadc1, adc_out, 2);
+        HAL_TIM_Base_Start_IT(&htim6);
+        HAL_GPIO_TogglePin(st_UART_GPIO_Port, st_UART_Pin);
+    }
+    iter++;
 }
 
 
