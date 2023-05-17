@@ -248,31 +248,24 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	filter_alfa_beta( 		&mpu9250, &mpu6886, &imu  );
 	filter_kalman( 			&mpu9250, &mpu6886, &imu  );
 
-	//uint8_t RX_Buffer[20] = {'a','b','c','d','e','f','g','h','i','j'};
-//	motor_status.pos = 10.0;
-//	motor_status.vel = 10.0;
-//	motor_status.acc = 10.0;
-	//HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)RX_Buffer, (uint8_t*)&motor_status, 12, 3);
-	//static uint8_t i = 1;
-	uint8_t result = 0;
-	static uint8_t out = 1;
+    OUT_motor_status.pos[0] = 1.1;
+    OUT_motor_status.vel[0] = 10.1;
+    OUT_motor_status.acc[0] = 100.1;
+    OUT_motor_status.en[1]  = ENABLED;
+    OUT_motor_status.pos[1] = 2.1;
+    OUT_motor_status.vel[1] = 20.1;
+    OUT_motor_status.acc[1] = 200.1;
+    OUT_motor_status.en[1]  = ENABLED;
 
-	OUT_motor_status.pos[0] = 1.1;
-	OUT_motor_status.vel[0] = 10.1;
-	OUT_motor_status.acc[0] = 100.1;
-
-	HAL_GPIO_TogglePin(ST_UART_GPIO_Port, ST_UART_Pin);
-	HAL_UART_Transmit(&huart4, (uint8_t*)&OUT_motor_status, sizeof(motor_status_struct), 1);
-	HAL_UART_Receive( &huart4, (uint8_t*)&IN_motor_status , sizeof(motor_status_struct), 1);
-	HAL_GPIO_TogglePin(ST_UART_GPIO_Port, ST_UART_Pin);
-	//HAL_UART_Receive( &huart4, (uint8_t*)&result, sizeof(uint8_t), 1);
-	//HAL_GPIO_WritePin(ST_UART_GPIO_Port, ST_UART_Pin,GPIO_PIN_RESET);
-
-	out++;
-	out %= 21;
-	//HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)&out, (uint8_t*)&result, sizeof(uint8_t), 2);
-
-	//HAL_SPI_Receive( &hspi1, (uint8_t*)RX_Buffer, sizeof(motor_status_struct), 2);
+    static int motor_iter = 0;
+    motor_iter %= 4;
+    if (!motor_iter){
+        HAL_GPIO_TogglePin(ST_UART_GPIO_Port, ST_UART_Pin);
+        HAL_UART_Transmit(&huart4, (uint8_t*)&OUT_motor_status, sizeof(motor_status_struct), 1);
+        HAL_UART_Receive( &huart4, (uint8_t*)&IN_motor_status , sizeof(motor_status_struct), 1);
+        HAL_GPIO_TogglePin(ST_UART_GPIO_Port, ST_UART_Pin);
+    }
+    motor_iter++;
 
     static int iter 	= 0 ;
     static int current 	= 0 ;

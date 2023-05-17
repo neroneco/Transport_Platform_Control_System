@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <math.h>
+#include <stdlib.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -248,15 +249,15 @@ extern ADC_HandleTypeDef hadc1;
 
 volatile int adc_conv_complate = 0;
 
-volatile static uint32_t adc_out[2];
+extern uint32_t adc_out[2];
 extern float  volt_dist[2];
 extern float  pos[2];
 extern float  pos_new[2];
 extern float  pos_prev[2];
 
 enum DIR{
-    DIR_PLUS,
-    DIR_MINUS
+    DIR_PLUS = 1,
+    DIR_MINUS = -1
 };
 
 enum STEPPER_STATUS{
@@ -269,7 +270,7 @@ static float K = 0.0393;
 static int x_dir = DIR_PLUS;
 static int y_dir = DIR_PLUS;
 static int x_en = DISABLED;
-static int x_en = DISABLED;
+static int y_en = DISABLED;
 
 static int x_step = 0;
 static int y_step = 0;
@@ -378,6 +379,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         pos_prev[0] = pos[0];
         pos_prev[1] = pos[1];
 
+        if ( fabs(x_step*K - pos_prev[0])> 15){
+            x_step = (int)(pos_prev[0]/K);
+        }
+
+        if ( fabs(y_step*K - pos_prev[1])> 15){
+            y_step = (int)(pos_prev[1]/K);
+        }
+
+        if ( (pos_prev[0]>170) || (pos_prev[0]<-170) || (pos_prev[1]>70) || (pos_prev[1]<-70)){
+            ES_STOP();
+            //volt_dist[0] = 2.2;
+        }
+
         HAL_ADC_Start_DMA(&hadc1, adc_out, 2);
         HAL_TIM_Base_Start_IT(&htim6);
         HAL_GPIO_TogglePin(st_UART_GPIO_Port, st_UART_Pin);
@@ -442,6 +456,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     else
         HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_RESET);
 
+    x_en = IN_motor_status.en[0];
+    y_en = IN_motor_status.en[1];
     // Enable
     if (x_en == ENABLED)
         HAL_GPIO_WritePin(X_EN_GPIO_Port,  X_EN_Pin ,GPIO_PIN_RESET);
@@ -454,11 +470,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 
     static int i = 0;
-    OUT_motor_status.pos[0] = pos[0];
-    OUT_motor_status.vel[0] = 50.0*sin(2.0*M_PI*0.001*i + M_PI/3.0);
+    OUT_motor_status.pos[0] = ((float)x_step*K);
+    OUT_motor_status.vel[0] = (float)((K*25000/x_speed)*x_dir);
     OUT_motor_status.acc[0] = 50.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
-    OUT_motor_status.pos[1] = pos[1];
-    OUT_motor_status.vel[1] = 20.0*sin(2.0*M_PI*0.001*i + M_PI/3.0);
+    OUT_motor_status.pos[1] = ((float)y_step*K);
+    OUT_motor_status.vel[1] = (float)((K*25000/y_speed)*x_dir);
     OUT_motor_status.acc[1] = 20.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
     i++;
     HAL_UART_Transmit_IT(&huart4, (uint8_t*)&OUT_motor_status, sizeof(motor_status_struct));

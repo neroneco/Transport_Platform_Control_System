@@ -94,6 +94,7 @@ typedef struct {
 	float pos[2];
 	float vel[2];
 	float acc[2];
+	int   en[2];
 } motor_status_struct;
 
 /* USER CODE END Private defines */

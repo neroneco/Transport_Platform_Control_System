@@ -117,11 +117,21 @@ void Error_Handler(void);
 /* USER CODE BEGIN Private defines */
 
 typedef struct {
-	float pos[2];
-	float vel[2];
-	float acc[2];
+    float pos[2];
+    float vel[2];
+    float acc[2];
+    int   en[2];
 } motor_status_struct;
 
+enum DIR{
+    DIR_PLUS = 1,
+    DIR_MINUS = -1
+};
+
+enum STEPPER_STATUS{
+    ENABLED,
+    DISABLED
+};
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

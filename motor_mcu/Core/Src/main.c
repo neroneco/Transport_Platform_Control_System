@@ -73,7 +73,8 @@ static void MX_TIM6_Init(void);
 
 
 uint32_t adc_out[2] = {993,1241};
-float  volt_dist[2] = {0.8,1};
+
+float  volt_dist[2] = {0.8,1.0};
 float  pos[2] = {0};
 float  pos_new[2] = {0};
 float  pos_prev[2] = {0};
