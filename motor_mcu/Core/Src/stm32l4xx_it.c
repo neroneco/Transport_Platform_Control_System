@@ -354,6 +354,16 @@ extern motor_status_struct IN_motor_status;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+    static int i = 0;
+    i++;
+    OUT_motor_status.pos[0] = convert_steps_to_position( x_steps_actual );
+    OUT_motor_status.vel[0] = convert_freq_div_to_velocity( x_freq_div );
+    OUT_motor_status.acc[0] = 50.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
+    OUT_motor_status.pos[1] = convert_steps_to_position( y_steps_actual );
+    OUT_motor_status.vel[1] = convert_freq_div_to_velocity( y_freq_div );
+    OUT_motor_status.acc[1] = 20.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
+    OUT_motor_status.en[0]  = x_en;
+    OUT_motor_status.en[1]  = y_en;
     // convert position in (float)[mm]   to position in steps (int)[steps]
     // convert velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
     x_steps_desired = convert_position_to_steps(    IN_motor_status.pos[0] );
@@ -372,18 +382,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     //         if low  motor active
     motor_start_stop_x( x_en );
     motor_start_stop_y( y_en );
-
-    static int i = 0;
-    i++;
-    OUT_motor_status.pos[0] = convert_steps_to_position( x_steps_actual );
-    OUT_motor_status.vel[0] = convert_freq_div_to_velocity( x_freq_div );
-    OUT_motor_status.acc[0] = 50.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
-    OUT_motor_status.pos[1] = convert_steps_to_position( y_steps_actual );
-    OUT_motor_status.vel[1] = convert_freq_div_to_velocity( y_freq_div );
-    OUT_motor_status.acc[1] = 20.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
-    OUT_motor_status.en[0]  = x_en;
-    OUT_motor_status.en[1]  = y_en;
-
 
     HAL_UART_Transmit_IT(&huart4, (uint8_t*)&OUT_motor_status, sizeof(motor_status_struct));
 }

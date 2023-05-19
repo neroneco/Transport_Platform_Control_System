@@ -80,25 +80,27 @@ motor_status_struct OUT_motor_status = {0};
 motor_status_struct IN_motor_status  = {0};
 
 // Global variables
-//    X axis:
-int x_en;
-int x_freq_div;
-int x_steps_desired;
-int x_steps_actual;
-int x_dir;
-
-//    Y axis:
-int y_en;
-int y_freq_div;
-int y_steps_desired;
-int y_steps_actual;
-int y_dir;
 
 const float K = 0.0393;      // [mm/imp]
 const int Max_Freq_Div  = 5;  // ~200[mm/s]
 const int Max_Freq      = 25000;  // ~200[mm/s]
 const float Max_Position_X = 175.0;
 const float Max_Position_Y =  75.0;
+
+//    X axis:
+int x_en;
+int x_freq_div = Max_Freq_Div;
+int x_steps_desired;
+int x_steps_actual;
+int x_dir;
+
+//    Y axis:
+int y_en;
+int y_freq_div = Max_Freq_Div;
+int y_steps_desired;
+int y_steps_actual;
+int y_dir;
+
 /* USER CODE END 0 */
 
 /**
@@ -140,10 +142,10 @@ int main(void)
   while(HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_SET);
 
 
+  HAL_TIM_Base_Start_IT(&htim6);
 
   HAL_UART_Receive_IT(&huart4, (uint8_t*)&IN_motor_status, sizeof(motor_status_struct));
 
-  HAL_TIM_Base_Start_IT(&htim6);
 
 
 

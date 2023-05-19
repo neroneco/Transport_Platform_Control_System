@@ -136,7 +136,7 @@ void make_step_y( void ) {
 
 int check_max_speed_x( int steps_actual, int freq_div, int dir) {
     int max_freq_div = steps_to_max_freq_div_x(steps_actual, dir);
-    if ( freq_div < max_freq_div ) {
+    if ( freq_div > max_freq_div ) {
         return freq_div;
     } else {
         return max_freq_div;
@@ -163,7 +163,7 @@ int steps_to_max_freq_div_x( int steps_pos, int dir ) {
 
 int check_max_speed_y( int steps_actual, int freq_div, int dir) {
     int max_freq_div = steps_to_max_freq_div_y(steps_actual, dir);
-    if ( freq_div < max_freq_div ) {
+    if ( freq_div > max_freq_div ) {
         return freq_div;
     } else {
         return max_freq_div;
