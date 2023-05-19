@@ -6,6 +6,15 @@
 #include "lwip/tcp.h"
 #include <string.h>
 
+typedef struct {
+    int x_en;
+    int y_en;
+    float x_position;
+    float y_position;
+    float x_velocity;
+    float y_velocity;
+} config_packet_struct;
+
 enum tcp_server_states
 {
   ES_NONE = 0,

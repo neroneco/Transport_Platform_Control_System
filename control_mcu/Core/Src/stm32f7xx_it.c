@@ -22,6 +22,7 @@
 #include "stm32f7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "tcp_server.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -227,6 +228,8 @@ extern data_packet_struct     Data_Packet[2];
 extern motor_status_struct OUT_motor_status;
 extern motor_status_struct  IN_motor_status;
 
+extern config_packet_struct config_packet;
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     HAL_GPIO_TogglePin(STATUS_REG_GPIO_Port, STATUS_REG_Pin);
@@ -248,16 +251,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	filter_alfa_beta( 		&mpu9250, &mpu6886, &imu  );
 	filter_kalman( 			&mpu9250, &mpu6886, &imu  );
 
-    OUT_motor_status.pos[0] = 1.1;
-    OUT_motor_status.vel[0] = 10.1;
-    OUT_motor_status.acc[0] = 100.1;
-    OUT_motor_status.en[1]  = ENABLED;
-    OUT_motor_status.pos[1] = 2.1;
-    OUT_motor_status.vel[1] = 20.1;
-    OUT_motor_status.acc[1] = 200.1;
-    OUT_motor_status.en[1]  = ENABLED;
+    OUT_motor_status.pos[0] = config_packet.x_position;
+    OUT_motor_status.vel[0] = config_packet.x_velocity;
+    OUT_motor_status.acc[0] = 0.0;
+    OUT_motor_status.en[0]  = config_packet.x_en;
+    OUT_motor_status.pos[1] = config_packet.y_position;
+    OUT_motor_status.vel[1] = config_packet.y_velocity;
+    OUT_motor_status.acc[1] = 0.0;
+    OUT_motor_status.en[1]  = config_packet.y_en;
 
-    static int motor_iter = 0;
+    static int motor_iter;
+    motor_iter++;
     motor_iter %= 4;
     if (!motor_iter){
         HAL_GPIO_TogglePin(ST_UART_GPIO_Port, ST_UART_Pin);
@@ -265,7 +269,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         HAL_UART_Receive( &huart4, (uint8_t*)&IN_motor_status , sizeof(motor_status_struct), 1);
         HAL_GPIO_TogglePin(ST_UART_GPIO_Port, ST_UART_Pin);
     }
-    motor_iter++;
 
     static int iter 	= 0 ;
     static int current 	= 0 ;

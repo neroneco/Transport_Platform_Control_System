@@ -252,21 +252,26 @@ extern ADC_HandleTypeDef hadc1;
 // ADC DMA optical sensor data
 extern uint32_t adc_out[2];
 
-// Global variables
+// Global variables extern
 //    X axis:
-int x_en;
-int x_freq_div;
-int x_steps_desired;
-int x_steps_actual;
-int x_dir;
+extern int x_en;
+extern int x_freq_div;
+extern int x_steps_desired;
+extern int x_steps_actual;
+extern int x_dir;
 
 //    Y axis:
-int y_en;
-int y_freq_div;
-int y_steps_desired;
-int y_steps_actual;
-int y_dir;
+extern int y_en;
+extern int y_freq_div;
+extern int y_steps_desired;
+extern int y_steps_actual;
+extern int y_dir;
 
+extern float K;      // [mm/imp]
+extern int Max_Freq_Div;  // ~200[mm/s]
+extern int Max_Freq;  // ~200[mm/s]
+extern float Max_Position_X;
+extern float Max_Position_Y;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -307,13 +312,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             // and swap them if the difference is larger then ~14[mm] (~14[mm] = ~356 steps)
             static int dif_steps_x;
             static int dif_steps_y;
-            dif_steps_x = abs(adc_steps_x - steps_actual_x);
-            dif_steps_y = abs(adc_steps_y - steps_actual_y);
+            dif_steps_x = abs(adc_steps_x - x_steps_actual);
+            dif_steps_y = abs(adc_steps_y - y_steps_actual);
             if ( dif_steps_x > 356 ) {
-                steps_actual_x = adc_steps_x;
+                x_steps_actual = adc_steps_x;
             }
             if ( dif_steps_y > 356 ) {
-                steps_actual_y = adc_steps_y;
+                y_steps_actual = adc_steps_y;
             }
         }
 
@@ -360,8 +365,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     y_en            = IN_motor_status.en[1];
 
     // Set direction based on desired position
-    x_dir = set_motor_direction( x_steps_desired, x_steps_actual );
-    y_dir = set_motor_direction( y_steps_desired, y_steps_actual );
+    x_dir = set_motor_direction_x( x_steps_desired, x_steps_actual );
+    y_dir = set_motor_direction_y( y_steps_desired, y_steps_actual );
 
     // EN bit: if high motor inactive
     //         if low  motor active
@@ -369,13 +374,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     motor_start_stop_y( y_en );
 
     static int i = 0;
-    OUT_motor_status.pos[0] = convert_steps_to_position( x_step );
+    i++;
+    OUT_motor_status.pos[0] = convert_steps_to_position( x_steps_actual );
     OUT_motor_status.vel[0] = convert_freq_div_to_velocity( x_freq_div );
     OUT_motor_status.acc[0] = 50.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
-    OUT_motor_status.pos[1] = convert_steps_to_position( y_step );
+    OUT_motor_status.pos[1] = convert_steps_to_position( y_steps_actual );
     OUT_motor_status.vel[1] = convert_freq_div_to_velocity( y_freq_div );
     OUT_motor_status.acc[1] = 20.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
-    i++;
+    OUT_motor_status.en[0]  = x_en;
+    OUT_motor_status.en[1]  = y_en;
+
+
     HAL_UART_Transmit_IT(&huart4, (uint8_t*)&OUT_motor_status, sizeof(motor_status_struct));
 }
 

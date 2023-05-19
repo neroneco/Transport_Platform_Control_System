@@ -8,6 +8,8 @@
 
 
 #include "stepper_motor.h"
+#include <math.h>
+#include <stdlib.h>
 
 // --------------------- Motor control -----------------------------------
 
@@ -24,11 +26,12 @@ void motor_start_stop_x( int toggle ) {
 
 // Set direction based on desired position
 int set_motor_direction_x( int steps_des, int steps_act ) {
+    int direction;
     if (steps_des > steps_act) {
-        direction = PLUS;
+        direction = DIR_PLUS;
         HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_SET);
     } else {
-        direction = MINUS;
+        direction = DIR_MINUS;
         HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_RESET);
     }
     return direction;
@@ -47,11 +50,12 @@ void motor_start_stop_y( int toggle ) {
 
 // Set direction based on desired position
 int set_motor_direction_y( int steps_des, int steps_act ) {
+    int direction;
     if (steps_des > steps_act) {
-        direction = PLUS;
+        direction = DIR_PLUS;
         HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_SET);
     } else {
-        direction = MINUS;
+        direction = DIR_MINUS;
         HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_SET);
     }
     return direction;
@@ -65,7 +69,7 @@ extern int x_steps_actual;
 extern int x_dir;
 void make_step_x( void ) {
     // check max speed for current position and change it if necessery
-    x_freq_div = check_max_speed(x_steps_actual, x_freq_div);
+    x_freq_div = check_max_speed_x(x_steps_actual, x_freq_div, x_dir);
 
     static int iter;
     iter++;
@@ -97,7 +101,7 @@ extern int y_steps_actual;
 extern int y_dir;
 void make_step_y( void ) {
     // check max speed for current position and change it if necessery
-    y_freq_div = check_max_speed(y_steps_actual, y_freq_div);
+    y_freq_div = check_max_speed_y(y_steps_actual, y_freq_div, y_dir);
 
     static int iter;
     iter++;
@@ -130,8 +134,8 @@ void make_step_y( void ) {
 
 // --------------------- Speed control -----------------------------------
 
-int check_max_speed_x( int steps_actual, int freq_div ) {
-    int max_freq_div = steps_to_max_freq_div_x(steps_actual);
+int check_max_speed_x( int steps_actual, int freq_div, int dir) {
+    int max_freq_div = steps_to_max_freq_div_x(steps_actual, dir);
     if ( freq_div < max_freq_div ) {
         return freq_div;
     } else {
@@ -142,13 +146,13 @@ int check_max_speed_x( int steps_actual, int freq_div ) {
 
 // for 4278 steps I want to have speed of ~   1[mm/s] -> freq_div = 1000
 // for 2546 steps I want to have speed of ~ 200[mm/s] -> freq_div =    5
-int steps_to_max_freq_div_x( int steps_pos ) {
+int steps_to_max_freq_div_x( int steps_pos, int dir ) {
     // if pos in range of <-100[mm], 100[mm]> ~~~ <-2546[steps], 2546[steps]>
     if ( (steps_pos > -2546) && (steps_pos < 2546) ){
         return Max_Freq_Div;
-    } else if ( (step_pos > 0) && (step_pos < 4278) && (dir == DIR_MINUS) ) {
+    } else if ( (steps_pos > 0) && (steps_pos < 4278) && (dir == DIR_MINUS) ) {
         return Max_Freq_Div;
-    } else if ( (step_pos < 0) && (step_pos > -4278) && (dir == DIR_PLUS) ) {
+    } else if ( (steps_pos < 0) && (steps_pos > -4278) && (dir == DIR_PLUS) ) {
         return Max_Freq_Div;
     } else {
         // 4278[steps] ~ 168[mm]
@@ -157,8 +161,8 @@ int steps_to_max_freq_div_x( int steps_pos ) {
 }
 
 
-int check_max_speed_y( int steps_actual, int freq_div ) {
-    int max_freq_div = steps_to_max_freq_div_y(steps_actual);
+int check_max_speed_y( int steps_actual, int freq_div, int dir) {
+    int max_freq_div = steps_to_max_freq_div_y(steps_actual, dir);
     if ( freq_div < max_freq_div ) {
         return freq_div;
     } else {
@@ -169,9 +173,16 @@ int check_max_speed_y( int steps_actual, int freq_div ) {
 
 // for 1910 steps I want to have speed of ~   1[mm/s] -> freq_div = 1000
 // for 0 steps I want to have speed of ~ 200[mm/s] -> freq_div =    5
-int steps_to_max_freq_div_y( int steps_pos ) {
-    // 1910[steps] ~ 75[mm]
-    return abs(((int)( (995.0 / 1910.0) * (float)(abs(steps_pos)))) + Max_Freq_Div);
+int steps_to_max_freq_div_y( int steps_pos, int dir ) {
+
+    if ( (steps_pos > 0) && (steps_pos < 1910) && (dir == DIR_MINUS) ) {
+        return Max_Freq_Div;
+    } else if ( (steps_pos < 0) && (steps_pos > -1910) && (dir == DIR_PLUS) ) {
+        return Max_Freq_Div;
+    } else {
+        // 1910[steps] ~ 75[mm]
+        return abs(((int)( (995.0 / 1910.0) * (float)(abs(steps_pos)))) + Max_Freq_Div);
+    }
 }
 
 // -----------------------------------------------------------------------
@@ -197,7 +208,7 @@ int convert_velocity_to_freq_div( float velocity ) {
 
 // converts position in steps (int)[steps]   to position in (float)[mm]
 float convert_steps_to_position( int steps_actual ) {
-    return (K * ((float)steps_acutal));
+    return (K * ((float)steps_actual));
 }
 
 
@@ -215,11 +226,16 @@ float convert_freq_div_to_velocity( int freq_div ) {
 
 // ---------------- Optical sensor position control ----------------------
 
+extern TIM_HandleTypeDef htim6;
+extern int x_en;
+extern int y_en;
 void ES_STOP() {
     HAL_TIM_Base_Stop_IT(&htim6);
     HAL_GPIO_WritePin(X_EN_GPIO_Port, X_EN_Pin ,GPIO_PIN_SET);
     HAL_GPIO_WritePin(Y_EN_GPIO_Port, Y_EN_Pin ,GPIO_PIN_SET);
     while(1){
+        x_en = DISABLED;
+        y_en = DISABLED;
         HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         HAL_Delay(1000);
     };
@@ -230,6 +246,7 @@ void ES_STOP() {
 //    For X axis:
 float adc_get_pos_x( uint32_t adc_output) {
     // convert [bits] to [volts]: (3.3[V]) / (4096[bits])* ADC_VALUE; (ADC is 12-bit)
+    static float volt_dist;
     volt_dist = 0.0008056640625f * (float)adc_output;
 
     // Emergancy check
@@ -245,7 +262,7 @@ float adc_get_pos_x( uint32_t adc_output) {
 
     // simple digital IIR LP filter (recursive average): f_cutoff ~ 4[Hz]
     static float alpha = 0.15;
-    static float pos_filtered
+    static float pos_filtered;
     pos_filtered = ((1.0-alpha) * pos_filtered) + (alpha * pos_approx);
 
     return pos_filtered;
@@ -255,6 +272,7 @@ float adc_get_pos_x( uint32_t adc_output) {
 //    For Y axis:
 float adc_get_pos_y( uint32_t adc_output) {
     // convert [bits] to [volts]: (3.3[V]) / (4096[bits])* ADC_VALUE; (ADC is 12-bit)
+    static float volt_dist;
     volt_dist = 0.0008056640625f * (float)adc_output;
 
     // Emergency check
@@ -270,7 +288,7 @@ float adc_get_pos_y( uint32_t adc_output) {
 
     // simple digital IIR LP filter (recursive average): f_cutoff ~ 4[Hz]
     static float alpha = 0.15;
-    static float pos_filtered
+    static float pos_filtered;
     pos_filtered = ((1.0-alpha) * pos_filtered) + (alpha * pos_approx);
 
     return pos_filtered;

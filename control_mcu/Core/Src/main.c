@@ -78,6 +78,7 @@ volatile int                Previous        = PACKET_NONE;
 
 motor_status_struct OUT_motor_status = {0};
 motor_status_struct  IN_motor_status = {0};
+config_packet_struct config_packet   = {0};
 /* USER CODE END 0 */
 
 /**

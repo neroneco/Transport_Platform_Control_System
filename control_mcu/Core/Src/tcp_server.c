@@ -212,18 +212,10 @@ typedef struct {
 	char n4;
 } input_data_struct;
 
-typedef struct {
-    int x_en;
-    int y_en;
-    float x_position;
-    float y_position;
-    float x_velocity;
-    float y_velocity;
-} config_packet_struct;
-
-config_packet_struct config_packet = {0};
 extern data_packet_struct Data_Packet[2];
 extern int  Previous;
+
+extern config_packet_struct config_packet;
 
 static void tcp_server_write(struct tcp_pcb *tpcb, struct tcp_server_state_struct *tss)
 {
@@ -244,7 +236,7 @@ static void tcp_server_write(struct tcp_pcb *tpcb, struct tcp_server_state_struc
         if(config_packet.x_en == 1){
             //HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         }
-        // TODO substitue ptr_payload with your data
+        // TODO substitute ptr_payload with your data
         //      and also make it wait for this data.
 #if 0
         static data_packet_struct real;

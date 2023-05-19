@@ -2,7 +2,7 @@
 #ifndef INC_STEPPER_MOTOR_H_
 #define INC_STEPPER_MOTOR_H_
 
-#include "stm32l4xx_hal.h"
+#include "main.h"
 
 enum STEPPER_DIR{
     DIR_PLUS = 1,
@@ -14,11 +14,11 @@ enum STEPPER_STATUS{
     DISABLED
 };
 
-const float K = 0.0393;      // [mm/imp]
-const int Max_Freq_Div  = 5;  // ~200[mm/s]
-const int Max_Freq      = 25000;  // ~200[mm/s]
-const float Max_Position_X = 175.0;
-const float Max_Position_Y =  75.0;
+extern float K;      // [mm/imp]
+extern int Max_Freq_Div;  // ~200[mm/s]
+extern int Max_Freq;  // ~200[mm/s]
+extern float Max_Position_X;
+extern float Max_Position_Y;
 
 // Motor setup
 void motor_start_stop_x( int toggle );
@@ -29,8 +29,10 @@ void make_step_x( void );
 void make_step_y( void );
 
 // Speed control
-int check_max_speed( int steps_actual, int freq_div );
-int steps_to_max_freq_div( int steps_pos );
+int check_max_speed_x( int steps_actual, int freq_div, int dir);
+int check_max_speed_y( int steps_actual, int freq_div, int dir );
+int steps_to_max_freq_div_x( int steps_pos, int dir);
+int steps_to_max_freq_div_y( int steps_pos, int dir);
 
 // Conversion
 int convert_position_to_steps( float position );
