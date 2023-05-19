@@ -24,6 +24,8 @@
 /* USER CODE BEGIN Includes */
 #include <math.h>
 #include <stdlib.h>
+
+#include "stepper_motor.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -247,156 +249,78 @@ void TIM6_DAC_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 extern ADC_HandleTypeDef hadc1;
 
-volatile int adc_conv_complate = 0;
-
+// ADC DMA optical sensor data
 extern uint32_t adc_out[2];
-extern float  volt_dist[2];
-extern float  pos[2];
-extern float  pos_new[2];
-extern float  pos_prev[2];
 
-enum DIR{
-    DIR_PLUS = 1,
-    DIR_MINUS = -1
-};
+// Global variables
+//    X axis:
+int x_en;
+int x_freq_div;
+int x_steps_desired;
+int x_steps_actual;
+int x_dir;
 
-enum STEPPER_STATUS{
-    ENABLED,
-    DISABLED
-};
+//    Y axis:
+int y_en;
+int y_freq_div;
+int y_steps_desired;
+int y_steps_actual;
+int y_dir;
 
-static float K = 0.0393;
-
-static int x_dir = DIR_PLUS;
-static int y_dir = DIR_PLUS;
-static int x_en = DISABLED;
-static int y_en = DISABLED;
-
-static int x_step = 0;
-static int y_step = 0;
-static int x_des_pos = 0;
-static int y_des_pos = 0;
-
-static int x_speed = 10000;
-static int y_speed = 10000;
-
-static void ES_STOP(){
-    HAL_TIM_Base_Stop_IT(&htim6);
-    HAL_GPIO_WritePin(X_EN_GPIO_Port, X_EN_Pin ,GPIO_PIN_SET);
-    HAL_GPIO_WritePin(Y_EN_GPIO_Port, Y_EN_Pin ,GPIO_PIN_SET);
-    while(1){
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-        HAL_Delay(1000);
-    };
-}
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    static int iter = 0;
 
-    static int x_v = 0;
-    static int y_v = 0;
-
-    x_v %= x_speed;
-    y_v %= y_speed;
-
-    // Step
-    if (x_step != x_des_pos){
-        if (x_en == ENABLED){
-            if (!x_v){
-                HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
-                switch (x_dir)
-                {
-                case DIR_PLUS:
-                    x_step++;
-                    break;
-                case DIR_MINUS:
-                    x_step--;
-                    break;
-                }
-            }
-        }
-    }
-    if (y_step != y_des_pos){
-        if (y_en == ENABLED){
-            if (!y_v){
-                HAL_GPIO_TogglePin(Y_STEP_GPIO_Port, Y_STEP_Pin);
-                switch (y_dir)
-                {
-                case DIR_PLUS:
-                    y_step++;
-                    break;
-                case DIR_MINUS:
-                    y_step--;
-                    break;
-                }
-            }
-        }
+    if (x_en == ENABLED) {
+        make_step_x();
     }
 
-    x_v++;
-    y_v++;
-
-
+    // 25[Hz] ADC optical sensor read
+    static int iter;
+    iter++;
     iter %= 2000;
     if (!iter) {
         HAL_GPIO_TogglePin(st_UART_GPIO_Port, st_UART_Pin);
         HAL_TIM_Base_Stop_IT(&htim6);
 
-        volt_dist[0] = 0.0008056640625f * (float)adc_out[0];
-        volt_dist[1] = 0.0008056640625f * (float)adc_out[1];
-        static float ax = -319.6;
-        static float bx = -0.7314;
-        static float cx =  374.9;
-        static float ay = -230.5;
-        static float by = -0.8702;
-        static float cy =  230.7;
+        {
+            // get position from optical sensor and convert them to steps position
+            static float adc_pos_x;
+            static float adc_pos_y;
+            adc_pos_x = adc_get_pos_x(adc_out[0]);
+            adc_pos_y = adc_get_pos_y(adc_out[1]);
 
-        if (volt_dist[0]>2.2){
-            ES_STOP();
-            //volt_dist[0] = 2.2;
-        }
-        else if (volt_dist[0]<0.45){
-            ES_STOP();
-            //volt_dist[0] = 0.45;
-        }
+            // safety code: turn off motors and signal error status if adc_pos in danger zone
+            if (check_danger_zone(adc_pos_x, Max_Position_X)) {
+                ES_STOP();
+            }
+            if (check_danger_zone(adc_pos_y, Max_Position_Y)) {
+                ES_STOP();
+            }
 
-        if (volt_dist[1]>1.8){
-            ES_STOP();
-            //volt_dist[1] = 1.8;
-        }
-        else if (volt_dist[1]<0.65){
-            ES_STOP();
-            //volt_dist[1] = 0.65;
-        }
+            static int adc_steps_x;
+            static int adc_steps_y;
+            adc_steps_x = convert_position_to_steps(adc_pos_x);
+            adc_steps_y = convert_position_to_steps(adc_pos_y);
 
-        pos_new[0] = ax*pow(volt_dist[0],bx) + cx;
-        pos_new[1] = ay*pow(volt_dist[1],by) + cy;
-
-        static float alpha = 0.15;
-        pos[0] = (1.0-alpha)*pos_prev[0] + alpha*pos_new[0];
-        pos[1] = (1.0-alpha)*pos_prev[1] + alpha*pos_new[1];
-        pos_prev[0] = pos[0];
-        pos_prev[1] = pos[1];
-
-        if ( fabs(x_step*K - pos_prev[0])> 15){
-            x_step = (int)(pos_prev[0]/K);
-        }
-
-        if ( fabs(y_step*K - pos_prev[1])> 15){
-            y_step = (int)(pos_prev[1]/K);
-        }
-
-        if ( (pos_prev[0]>170) || (pos_prev[0]<-170) || (pos_prev[1]>70) || (pos_prev[1]<-70)){
-            ES_STOP();
-            //volt_dist[0] = 2.2;
+            // check difference in measured position and expected position from steps of stepper motor
+            // and swap them if the difference is larger then ~14[mm] (~14[mm] = ~356 steps)
+            static int dif_steps_x;
+            static int dif_steps_y;
+            dif_steps_x = abs(adc_steps_x - steps_actual_x);
+            dif_steps_y = abs(adc_steps_y - steps_actual_y);
+            if ( dif_steps_x > 356 ) {
+                steps_actual_x = adc_steps_x;
+            }
+            if ( dif_steps_y > 356 ) {
+                steps_actual_y = adc_steps_y;
+            }
         }
 
         HAL_ADC_Start_DMA(&hadc1, adc_out, 2);
         HAL_TIM_Base_Start_IT(&htim6);
         HAL_GPIO_TogglePin(st_UART_GPIO_Port, st_UART_Pin);
     }
-    iter++;
 }
 
 
@@ -425,56 +349,31 @@ extern motor_status_struct IN_motor_status;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    x_des_pos = (int)((IN_motor_status.pos[0])/K);
-    y_des_pos = (int)((IN_motor_status.pos[1])/K);
-    x_speed   = (int)(25000/(IN_motor_status.vel[0]/K));
-    y_speed   = (int)(25000/(IN_motor_status.vel[1]/K));
+    // convert position in (float)[mm]   to position in steps (int)[steps]
+    // convert velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
+    x_steps_desired = convert_position_to_steps(    IN_motor_status.pos[0] );
+    x_freq_div      = convert_velocity_to_freq_div( IN_motor_status.vel[0] );
+    x_en            = IN_motor_status.en[0];
 
-    if(x_speed > 0){
-        x_dir = DIR_PLUS;
-    } else {
-        x_dir = DIR_MINUS;
-    }
-    if(y_speed > 0){
-        y_dir = DIR_PLUS;
-    } else {
-        y_dir = DIR_MINUS;
-    }
+    y_steps_desired = convert_position_to_steps(    IN_motor_status.pos[1] );
+    y_freq_div      = convert_velocity_to_freq_div( IN_motor_status.vel[1] );
+    y_en            = IN_motor_status.en[1];
 
-    x_speed = abs(x_speed);
-    y_speed = abs(y_speed);
+    // Set direction based on desired position
+    x_dir = set_motor_direction( x_steps_desired, x_steps_actual );
+    y_dir = set_motor_direction( y_steps_desired, y_steps_actual );
 
-
-    // Direction
-    if (x_dir == DIR_PLUS)
-        HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_SET);
-    else
-        HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_RESET);
-
-    if (y_dir == DIR_PLUS)
-        HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_SET);
-    else
-        HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_RESET);
-
-    x_en = IN_motor_status.en[0];
-    y_en = IN_motor_status.en[1];
-    // Enable
-    if (x_en == ENABLED)
-        HAL_GPIO_WritePin(X_EN_GPIO_Port,  X_EN_Pin ,GPIO_PIN_RESET);
-    else
-        HAL_GPIO_WritePin(X_EN_GPIO_Port,  X_EN_Pin ,GPIO_PIN_SET);
-    if (y_en == ENABLED)
-        HAL_GPIO_WritePin(Y_EN_GPIO_Port,  Y_EN_Pin ,GPIO_PIN_RESET);
-    else
-        HAL_GPIO_WritePin(Y_EN_GPIO_Port,  Y_EN_Pin ,GPIO_PIN_SET);
-
+    // EN bit: if high motor inactive
+    //         if low  motor active
+    motor_start_stop_x( x_en );
+    motor_start_stop_y( y_en );
 
     static int i = 0;
-    OUT_motor_status.pos[0] = ((float)x_step*K);
-    OUT_motor_status.vel[0] = (float)((K*25000/x_speed)*x_dir);
+    OUT_motor_status.pos[0] = convert_steps_to_position( x_step );
+    OUT_motor_status.vel[0] = convert_freq_div_to_velocity( x_freq_div );
     OUT_motor_status.acc[0] = 50.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
-    OUT_motor_status.pos[1] = ((float)y_step*K);
-    OUT_motor_status.vel[1] = (float)((K*25000/y_speed)*x_dir);
+    OUT_motor_status.pos[1] = convert_steps_to_position( y_step );
+    OUT_motor_status.vel[1] = convert_freq_div_to_velocity( y_freq_div );
     OUT_motor_status.acc[1] = 20.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
     i++;
     HAL_UART_Transmit_IT(&huart4, (uint8_t*)&OUT_motor_status, sizeof(motor_status_struct));
