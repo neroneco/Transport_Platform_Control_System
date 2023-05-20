@@ -11,6 +11,18 @@
 #include <math.h>
 #include <stdlib.h>
 
+
+extern const float K;      // [mm/imp]
+extern const int Max_Freq_Div;  // [-] ~200[mm/s]
+extern const int Min_Freq_Div;  // [-] ~200[mm/s]
+extern const int Max_Freq;  // [Hz] ~200[mm/s]
+extern const float Max_V_X;
+extern const float Min_V_X;
+extern const float Max_V_Y;
+extern const float Min_V_Y;
+extern const float Max_Position_X;
+extern const float Max_Position_Y;
+
 // --------------------- Motor control -----------------------------------
 
 // EN bit: if high motor inactive
@@ -62,10 +74,8 @@ int set_motor_direction_y( int steps_des, int steps_act ) {
 extern int x_freq_div;
 extern int x_step_zad;
 extern int x_step_akt;
-extern int x_dir;
+extern int x_dir_akt;
 void make_step_x( void ) {
-    // check max speed for current position and change it if necessery
-    x_freq_div = check_max_speed_x(x_step_akt, x_freq_div, x_dir);
 
     static int iter;
     iter++;
@@ -77,7 +87,7 @@ void make_step_x( void ) {
 
             // one step takes two iterations
             if ( iter % 2 ) {
-                switch (x_dir){
+                switch (x_dir_akt){
                     case DIR_PLUS:
                         x_step_akt++;
                         break;
@@ -94,10 +104,8 @@ void make_step_x( void ) {
 extern int y_freq_div;
 extern int y_step_zad;
 extern int y_step_akt;
-extern int y_dir;
+extern int y_dir_akt;
 void make_step_y( void ) {
-    // check max speed for current position and change it if necessery
-    y_freq_div = check_max_speed_y(y_step_akt, y_freq_div, y_dir);
 
     static int iter;
     iter++;
@@ -109,7 +117,7 @@ void make_step_y( void ) {
 
             // one step takes two iterations
             if ( iter % 2 ) {
-                switch (y_dir){
+                switch (y_dir_akt){
                     case DIR_PLUS:
                         y_step_akt++;
                         break;
@@ -122,6 +130,80 @@ void make_step_y( void ) {
     }
 }
 
+extern float x_v_zad;
+extern float x_v_akt;
+extern float x_a_zad;
+extern float x_a_akt;
+extern int   x_dir_zad;
+int set_v_x( void ) {
+    // decelerate first if direction changed
+    if ( x_dir_akt != x_dir_zad ) {
+        // change direction but first decelerate
+        if (x_v_akt > 5.0) {
+            x_v_akt = x_v_akt - x_a_akt*0.01;
+        } else {
+            // change direction;
+            switch (x_dir_zad) {
+                case (DIR_PLUS):
+                    HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_SET);
+                    x_dir_akt = DIR_PLUS;
+                    break;
+                case (DIR_MINUS):
+                    HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_RESET);
+                    x_dir_akt = DIR_MINUS;
+                    break;
+            }
+        }
+    // now you can accelerate to desired speed
+    } else if ( x_v_akt < x_v_zad ) {
+        x_v_akt = x_v_akt + x_a_akt*0.01;
+        // lets check what is max speed for
+        // actual position based on desired position
+        float x_v_max = get_max_speed_for_position_x( x_step_akt, x_step_zad );
+        if ( x_v_akt > x_v_max ) {
+            x_v_akt = x_v_max;
+        }
+    }
+    return convert_velocity_to_freq_div( x_v_akt );
+}
+
+extern float y_v_zad;
+extern float y_v_akt;
+extern float y_a_zad;
+extern float y_a_akt;
+extern int   y_dir_zad;
+int set_v_y( void ) {
+    // decelerate first if direction changed
+    if ( y_dir_akt != y_dir_zad ) {
+        // change direction but first decelerate
+        if (y_v_akt > 5.0) {
+            y_v_akt = y_v_akt - y_a_akt*0.01;
+        } else {
+            // change direction;
+            switch (y_dir_zad) {
+                case (DIR_PLUS):
+                    HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_SET);
+                    y_dir_akt = DIR_PLUS;
+                    break;
+                case (DIR_MINUS):
+                    HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_RESET);
+                    y_dir_akt = DIR_MINUS;
+                    break;
+            }
+        }
+    // now you can accelerate to desired speed
+    } else if ( y_v_akt < y_v_zad ) {
+        y_v_akt = y_v_akt + y_a_akt*0.01;
+        // lets check what is max speed for
+        // actual position based on desired position
+        float y_v_max = get_max_speed_for_position_x( y_step_akt, y_step_zad);
+        if ( y_v_akt > y_v_max ) {
+            y_v_akt = y_v_max;
+        }
+    }
+    return convert_velocity_to_freq_div( y_v_akt );
+}
+
 // -----------------------------------------------------------------------
 
 
@@ -129,6 +211,22 @@ void make_step_y( void ) {
 
 
 // --------------------- Speed control -----------------------------------
+// TODO: change so that the acceleration/deceleration can be influenced
+float get_max_speed_for_position_x( int steps_actual, int steps_desired ) {
+    int dif = abs( steps_actual - steps_desired );
+    if ( dif > 2546 ) {
+        return Max_V_X;
+    }
+    return ((195.0/2546.0)*((float)dif) + 4.0);
+}
+
+float get_max_speed_for_position_y( int steps_actual, int steps_desired ) {
+    int dif = abs( steps_actual - steps_desired );
+    if ( dif > 2546 ) {
+        return Max_V_Y;
+    }
+    return ((195.0/2546.0)*((float)dif) + 4.0);
+}
 
 int check_max_speed_x( int steps_actual, int freq_div, int dir) {
     int max_freq_div = steps_to_max_freq_div_x(steps_actual, dir);
@@ -197,11 +295,14 @@ int convert_position_to_steps( float position ) {
 
 // converts velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
 int convert_velocity_to_freq_div( float velocity ) {
-    if ( (velocity > 1.0) || (velocity < 210.0) ) {
+    if ( (velocity > 1.0) || (velocity < 200.0) ) {
         float freq = (velocity / K);
         return (Max_Freq / freq);
+    } else if (velocity > 200.0) {
+        return Max_Freq_Div;
+    } else {
+        return Min_Freq_Div;
     }
-    return Min_Freq_Div;
 }
 
 

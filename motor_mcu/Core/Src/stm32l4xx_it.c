@@ -258,38 +258,66 @@ extern int x_en;
 extern int x_freq_div;
 extern int x_step_zad;
 extern int x_step_akt;
-extern int x_dir;
+extern float x_v_zad;
+extern float x_v_akt;
+extern float x_a_zad;
+extern float x_a_akt;
+extern int x_dir_zad;
+extern int x_dir_akt;
 
 //    Y axis:
 extern int y_en;
 extern int y_freq_div;
 extern int y_step_zad;
 extern int y_step_akt;
-extern int y_dir;
+extern float y_v_zad;
+extern float y_v_akt;
+extern float y_a_zad;
+extern float y_a_akt;
+extern int y_dir_zad;
+extern int y_dir_akt;
 
 extern float K;      // [mm/imp]
 extern int Max_Freq_Div;  // ~200[mm/s]
 extern int Max_Freq;  // ~200[mm/s]
 extern float Max_Position_X;
 extern float Max_Position_Y;
+extern float Max_V_X;
+extern float Max_V_Y;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 
     if (x_en == ENABLED) {
         make_step_x();
+#if 0
+            make_step_y();
+#endif
     }
 
-    // 25[Hz] ADC optical sensor read
+    // 100 [Hz] speed control
     static int iter;
     iter++;
-    iter %= 2000;
+    iter %= 500;
     if (!iter) {
         HAL_GPIO_TogglePin(st_UART_GPIO_Port, st_UART_Pin);
         HAL_TIM_Base_Stop_IT(&htim6);
 
+        // 100 [Hz] check/set actual velocity
         {
-            // get position from optical sensor and convert them to steps position
+            x_freq_div = set_v_x();
+#if 0
+            y_freq_div = set_v_y();
+#endif
+        }
+
+        // 25[Hz] ADC optical sensor read
+        // get position from optical sensor and convert them to steps position
+        static int adc_iter;
+        adc_iter++;
+        adc_iter %= 4;
+        if (!adc_iter) {
+
             static float adc_pos_x;
             static float adc_pos_y;
             adc_pos_x = adc_get_pos_x(adc_out[0]);
@@ -357,26 +385,26 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     static int i = 0;
     i++;
     OUT_motor_status.pos[0] = convert_steps_to_position( x_step_akt );
-    OUT_motor_status.vel[0] = convert_freq_div_to_velocity( x_freq_div );
+    OUT_motor_status.vel[0] = x_v_akt;
     OUT_motor_status.acc[0] = 50.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
     OUT_motor_status.pos[1] = convert_steps_to_position( y_step_akt );
-    OUT_motor_status.vel[1] = convert_freq_div_to_velocity( y_freq_div );
+    OUT_motor_status.vel[1] = y_v_akt;
     OUT_motor_status.acc[1] = 20.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
     OUT_motor_status.en[0]  = x_en;
     OUT_motor_status.en[1]  = y_en;
     // convert position in (float)[mm]   to position in steps (int)[steps]
     // convert velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
-    x_step_zad = convert_position_to_steps(    IN_motor_status.pos[0] );
-    x_freq_div      = convert_velocity_to_freq_div( IN_motor_status.vel[0] );
-    x_en            = IN_motor_status.en[0];
+    x_step_zad = convert_position_to_steps( IN_motor_status.pos[0] );
+    x_v_zad    = IN_motor_status.vel[0];
+    x_en       = IN_motor_status.en[0];
 
-    y_step_zad = convert_position_to_steps(    IN_motor_status.pos[1] );
-    y_freq_div      = convert_velocity_to_freq_div( IN_motor_status.vel[1] );
-    y_en            = IN_motor_status.en[1];
+    y_step_zad = convert_position_to_steps( IN_motor_status.pos[1] );
+    y_v_zad    = IN_motor_status.vel[1];
+    y_en       = IN_motor_status.en[1];
 
     // Set direction based on desired position
-    x_dir = set_motor_direction_x( x_step_zad, x_step_akt );
-    y_dir = set_motor_direction_y( y_step_zad, y_step_akt );
+    x_dir_zad = set_motor_direction_x( x_step_zad, x_step_akt );
+    y_dir_zad = set_motor_direction_y( y_step_zad, y_step_akt );
 
     // EN bit: if high motor inactive
     //         if low  motor active

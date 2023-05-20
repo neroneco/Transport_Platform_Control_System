@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stepper_motor.h"
 
 /* USER CODE END Includes */
 
@@ -85,25 +85,36 @@ const float K = 0.0393;      // [mm/imp]
 const int Max_Freq_Div  = 5;  // [-] ~200[mm/s]
 const int Min_Freq_Div  = 1000;  // [-] ~200[mm/s]
 const int Max_Freq      = 25000;  // [Hz] ~200[mm/s]
-const float Max_Velocity = 200.0;
-const float Min_Velocity = 1.0;
+const float Max_V_X = 200.0;
+const float Min_V_X = 1.0;
+const float Max_V_Y = 200.0;
+const float Min_V_Y = 1.0;
 const float Max_Position_X = 175.0;
 const float Max_Position_Y =  75.0;
 
 //    X axis:
-int x_en;
-int x_freq_div = Max_Freq_Div;
-int x_steps_desired;
-int x_steps_actual;
-int x_dir;
+int x_en = DISABLED;
+int x_freq_div = Min_Freq_Div;
+int x_step_zad = 0;
+int x_step_akt = 0;
+float x_v_zad = Min_V_X;
+float x_v_akt = Min_V_X;
+float x_a_zad;
+float x_a_akt = 400.0;
+int x_dir_zad = DIR_MINUS;
+int x_dir_akt = DIR_MINUS;
 
 //    Y axis:
-int y_en;
-int y_freq_div = Max_Freq_Div;
-int y_steps_desired;
-int y_steps_actual;
-int y_dir;
-
+int y_en = DISABLED;
+int y_freq_div = Min_Freq_Div;
+int y_step_zad = 0;
+int y_step_akt = 0;
+float y_v_zad  = Min_V_Y;
+float y_v_akt  = Min_V_Y;
+float y_a_zad;
+float y_a_akt = 400.0;
+int y_dir_zad = DIR_MINUS;
+int y_dir_akt = DIR_MINUS;
 /* USER CODE END 0 */
 
 /**

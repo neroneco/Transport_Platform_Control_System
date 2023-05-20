@@ -14,11 +14,6 @@ enum STEPPER_STATUS{
     DISABLED
 };
 
-extern float K;      // [mm/imp]
-extern int Max_Freq_Div;  // ~200[mm/s]
-extern int Max_Freq;  // ~200[mm/s]
-extern float Max_Position_X;
-extern float Max_Position_Y;
 
 // Motor setup
 void motor_start_stop_x( int toggle );
@@ -27,8 +22,13 @@ int  set_motor_direction_x( int steps_des, int steps_act );
 int  set_motor_direction_y( int steps_des, int steps_act );
 void make_step_x( void );
 void make_step_y( void );
+int set_v_x( void );
+int set_v_y( void );
+
 
 // Speed control
+float get_max_speed_for_position_x( int steps_actual, int steps_desired );
+float get_max_speed_for_position_y( int steps_actual, int steps_desired );
 int check_max_speed_x( int steps_actual, int freq_div, int dir);
 int check_max_speed_y( int steps_actual, int freq_div, int dir );
 int steps_to_max_freq_div_x( int steps_pos, int dir);
