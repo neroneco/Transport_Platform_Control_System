@@ -29,10 +29,8 @@ int set_motor_direction_x( int steps_des, int steps_act ) {
     int direction;
     if (steps_des > steps_act) {
         direction = DIR_PLUS;
-        HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_SET);
     } else {
         direction = DIR_MINUS;
-        HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_RESET);
     }
     return direction;
 }
@@ -53,10 +51,8 @@ int set_motor_direction_y( int steps_des, int steps_act ) {
     int direction;
     if (steps_des > steps_act) {
         direction = DIR_PLUS;
-        HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_SET);
     } else {
         direction = DIR_MINUS;
-        HAL_GPIO_WritePin(Y_DIR_GPIO_Port,  Y_DIR_Pin ,GPIO_PIN_SET);
     }
     return direction;
 }
@@ -64,18 +60,18 @@ int set_motor_direction_y( int steps_des, int steps_act ) {
 
 // Make step (CHANGES GLOBAL VARIABLES)
 extern int x_freq_div;
-extern int x_steps_desired;
-extern int x_steps_actual;
+extern int x_step_zad;
+extern int x_step_akt;
 extern int x_dir;
 void make_step_x( void ) {
     // check max speed for current position and change it if necessery
-    x_freq_div = check_max_speed_x(x_steps_actual, x_freq_div, x_dir);
+    x_freq_div = check_max_speed_x(x_step_akt, x_freq_div, x_dir);
 
     static int iter;
     iter++;
     iter %= x_freq_div;
     if ( !iter ){
-        if (x_steps_desired != x_steps_actual) {
+        if (x_step_zad != x_step_akt) {
 
             HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
 
@@ -83,10 +79,10 @@ void make_step_x( void ) {
             if ( iter % 2 ) {
                 switch (x_dir){
                     case DIR_PLUS:
-                        x_steps_actual++;
+                        x_step_akt++;
                         break;
                     case DIR_MINUS:
-                        x_steps_actual--;
+                        x_step_akt--;
                         break;
                 }
             }
@@ -96,18 +92,18 @@ void make_step_x( void ) {
 
 
 extern int y_freq_div;
-extern int y_steps_desired;
-extern int y_steps_actual;
+extern int y_step_zad;
+extern int y_step_akt;
 extern int y_dir;
 void make_step_y( void ) {
     // check max speed for current position and change it if necessery
-    y_freq_div = check_max_speed_y(y_steps_actual, y_freq_div, y_dir);
+    y_freq_div = check_max_speed_y(y_step_akt, y_freq_div, y_dir);
 
     static int iter;
     iter++;
     iter %= y_freq_div;
     if ( !iter ){
-        if (y_steps_desired != y_steps_actual) {
+        if (y_step_zad != y_step_akt) {
 
             HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
 
@@ -115,10 +111,10 @@ void make_step_y( void ) {
             if ( iter % 2 ) {
                 switch (y_dir){
                     case DIR_PLUS:
-                        y_steps_actual++;
+                        y_step_akt++;
                         break;
                     case DIR_MINUS:
-                        y_steps_actual--;
+                        y_step_akt--;
                         break;
                 }
             }
@@ -201,8 +197,11 @@ int convert_position_to_steps( float position ) {
 
 // converts velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
 int convert_velocity_to_freq_div( float velocity ) {
-    float freq = (velocity / K);
-    return (Max_Freq / freq);
+    if ( (velocity > 1.0) || (velocity < 210.0) ) {
+        float freq = (velocity / K);
+        return (Max_Freq / freq);
+    }
+    return Min_Freq_Div;
 }
 
 
@@ -214,8 +213,11 @@ float convert_steps_to_position( int steps_actual ) {
 
 // converts velocity in steps (int)[steps/s] to velocity in (float)[mm/s]
 float convert_freq_div_to_velocity( int freq_div ) {
-    float freq = (float)(Max_Freq / freq_div);
-    return (K * freq);
+    if (freq_div > 4) {
+        float freq = (float)(Max_Freq / freq_div);
+        return (K * freq);
+    }
+    return 200.0;
 }
 
 // -----------------------------------------------------------------------

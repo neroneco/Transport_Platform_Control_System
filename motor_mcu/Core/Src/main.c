@@ -82,8 +82,11 @@ motor_status_struct IN_motor_status  = {0};
 // Global variables
 
 const float K = 0.0393;      // [mm/imp]
-const int Max_Freq_Div  = 5;  // ~200[mm/s]
-const int Max_Freq      = 25000;  // ~200[mm/s]
+const int Max_Freq_Div  = 5;  // [-] ~200[mm/s]
+const int Min_Freq_Div  = 1000;  // [-] ~200[mm/s]
+const int Max_Freq      = 25000;  // [Hz] ~200[mm/s]
+const float Max_Velocity = 200.0;
+const float Min_Velocity = 1.0;
 const float Max_Position_X = 175.0;
 const float Max_Position_Y =  75.0;
 

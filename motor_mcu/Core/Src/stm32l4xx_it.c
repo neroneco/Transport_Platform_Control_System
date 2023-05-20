@@ -256,15 +256,15 @@ extern uint32_t adc_out[2];
 //    X axis:
 extern int x_en;
 extern int x_freq_div;
-extern int x_steps_desired;
-extern int x_steps_actual;
+extern int x_step_zad;
+extern int x_step_akt;
 extern int x_dir;
 
 //    Y axis:
 extern int y_en;
 extern int y_freq_div;
-extern int y_steps_desired;
-extern int y_steps_actual;
+extern int y_step_zad;
+extern int y_step_akt;
 extern int y_dir;
 
 extern float K;      // [mm/imp]
@@ -312,13 +312,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             // and swap them if the difference is larger then ~14[mm] (~14[mm] = ~356 steps)
             static int dif_steps_x;
             static int dif_steps_y;
-            dif_steps_x = abs(adc_steps_x - x_steps_actual);
-            dif_steps_y = abs(adc_steps_y - y_steps_actual);
+            dif_steps_x = abs(adc_steps_x - x_step_akt);
+            dif_steps_y = abs(adc_steps_y - y_step_akt);
             if ( dif_steps_x > 356 ) {
-                x_steps_actual = adc_steps_x;
+                x_step_akt = adc_steps_x;
             }
             if ( dif_steps_y > 356 ) {
-                y_steps_actual = adc_steps_y;
+                y_step_akt = adc_steps_y;
             }
         }
 
@@ -356,27 +356,27 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     static int i = 0;
     i++;
-    OUT_motor_status.pos[0] = convert_steps_to_position( x_steps_actual );
+    OUT_motor_status.pos[0] = convert_steps_to_position( x_step_akt );
     OUT_motor_status.vel[0] = convert_freq_div_to_velocity( x_freq_div );
     OUT_motor_status.acc[0] = 50.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
-    OUT_motor_status.pos[1] = convert_steps_to_position( y_steps_actual );
+    OUT_motor_status.pos[1] = convert_steps_to_position( y_step_akt );
     OUT_motor_status.vel[1] = convert_freq_div_to_velocity( y_freq_div );
     OUT_motor_status.acc[1] = 20.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
     OUT_motor_status.en[0]  = x_en;
     OUT_motor_status.en[1]  = y_en;
     // convert position in (float)[mm]   to position in steps (int)[steps]
     // convert velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
-    x_steps_desired = convert_position_to_steps(    IN_motor_status.pos[0] );
+    x_step_zad = convert_position_to_steps(    IN_motor_status.pos[0] );
     x_freq_div      = convert_velocity_to_freq_div( IN_motor_status.vel[0] );
     x_en            = IN_motor_status.en[0];
 
-    y_steps_desired = convert_position_to_steps(    IN_motor_status.pos[1] );
+    y_step_zad = convert_position_to_steps(    IN_motor_status.pos[1] );
     y_freq_div      = convert_velocity_to_freq_div( IN_motor_status.vel[1] );
     y_en            = IN_motor_status.en[1];
 
     // Set direction based on desired position
-    x_dir = set_motor_direction_x( x_steps_desired, x_steps_actual );
-    y_dir = set_motor_direction_y( y_steps_desired, y_steps_actual );
+    x_dir = set_motor_direction_x( x_step_zad, x_step_akt );
+    y_dir = set_motor_direction_y( y_step_zad, y_step_akt );
 
     // EN bit: if high motor inactive
     //         if low  motor active
