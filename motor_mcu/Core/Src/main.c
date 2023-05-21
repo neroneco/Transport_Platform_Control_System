@@ -86,9 +86,9 @@ const int Max_Freq_Div  = 5;  // [-] ~200[mm/s]
 const int Min_Freq_Div  = 1000;  // [-] ~200[mm/s]
 const int Max_Freq      = 25000;  // [Hz] ~200[mm/s]
 const float Max_V_X = 200.0;
-const float Min_V_X = 1.0;
+const float Min_V_X = 0.0;
 const float Max_V_Y = 200.0;
-const float Min_V_Y = 1.0;
+const float Min_V_Y = 0.0;
 const float Max_Position_X = 175.0;
 const float Max_Position_Y =  75.0;
 
@@ -100,9 +100,10 @@ int x_step_akt = 0;
 float x_v_zad = Min_V_X;
 float x_v_akt = Min_V_X;
 float x_a_zad;
-float x_a_akt = 400.0;
+float x_a_akt = 50.0;
 int x_dir_zad = DIR_MINUS;
 int x_dir_akt = DIR_MINUS;
+int x_hold = 0;
 
 //    Y axis:
 int y_en = DISABLED;
@@ -115,6 +116,7 @@ float y_a_zad;
 float y_a_akt = 400.0;
 int y_dir_zad = DIR_MINUS;
 int y_dir_akt = DIR_MINUS;
+int y_hold = 0;
 /* USER CODE END 0 */
 
 /**

@@ -75,25 +75,28 @@ extern int x_freq_div;
 extern int x_step_zad;
 extern int x_step_akt;
 extern int x_dir_akt;
+extern int x_hold;
 void make_step_x( void ) {
 
     static int iter;
     iter++;
     iter %= x_freq_div;
     if ( !iter ){
-        if (x_step_zad != x_step_akt) {
+        if ( !x_hold ) {
+            if (x_step_zad != x_step_akt) {
 
-            HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
+                HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
 
-            // one step takes two iterations
-            if ( iter % 2 ) {
-                switch (x_dir_akt){
-                    case DIR_PLUS:
-                        x_step_akt++;
-                        break;
-                    case DIR_MINUS:
-                        x_step_akt--;
-                        break;
+                // one step takes two iterations
+                if ( iter % 2 ) {
+                    switch (x_dir_akt){
+                        case DIR_PLUS:
+                            x_step_akt++;
+                            break;
+                        case DIR_MINUS:
+                            x_step_akt--;
+                            break;
+                    }
                 }
             }
         }
@@ -105,25 +108,28 @@ extern int y_freq_div;
 extern int y_step_zad;
 extern int y_step_akt;
 extern int y_dir_akt;
+extern int y_hold;
 void make_step_y( void ) {
 
     static int iter;
     iter++;
     iter %= y_freq_div;
     if ( !iter ){
-        if (y_step_zad != y_step_akt) {
+        if ( !y_hold ) {
+            if (y_step_zad != y_step_akt) {
 
-            HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
+                HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
 
-            // one step takes two iterations
-            if ( iter % 2 ) {
-                switch (y_dir_akt){
-                    case DIR_PLUS:
-                        y_step_akt++;
-                        break;
-                    case DIR_MINUS:
-                        y_step_akt--;
-                        break;
+                // one step takes two iterations
+                if ( iter % 2 ) {
+                    switch (y_dir_akt){
+                        case DIR_PLUS:
+                            y_step_akt++;
+                            break;
+                        case DIR_MINUS:
+                            y_step_akt--;
+                            break;
+                    }
                 }
             }
         }
@@ -157,6 +163,15 @@ int set_v_x( void ) {
     // now you can accelerate to desired speed
     } else if ( x_v_akt < x_v_zad ) {
         x_v_akt = x_v_akt + x_a_akt*0.01;
+        // lets check what is max speed for
+        // actual position based on desired position
+        float x_v_max = get_max_speed_for_position_x( x_step_akt, x_step_zad );
+        if ( x_v_akt > x_v_max ) {
+            x_v_akt = x_v_max;
+        }
+    // if desired speed changed you should decelerate
+    } else if ( x_v_akt > x_v_zad ) {
+        x_v_akt = x_v_akt - x_a_akt*0.01;
         // lets check what is max speed for
         // actual position based on desired position
         float x_v_max = get_max_speed_for_position_x( x_step_akt, x_step_zad );
@@ -197,6 +212,15 @@ int set_v_y( void ) {
         // lets check what is max speed for
         // actual position based on desired position
         float y_v_max = get_max_speed_for_position_x( y_step_akt, y_step_zad);
+        if ( y_v_akt > y_v_max ) {
+            y_v_akt = y_v_max;
+        }
+    // if desired speed changed you should decelerate
+    } else if ( y_v_akt > y_v_zad ) {
+        y_v_akt = y_v_akt - y_a_akt*0.01;
+        // lets check what is max speed for
+        // actual position based on desired position
+        float y_v_max = get_max_speed_for_position_x( y_step_akt, y_step_zad );
         if ( y_v_akt > y_v_max ) {
             y_v_akt = y_v_max;
         }

@@ -264,6 +264,7 @@ extern float x_a_zad;
 extern float x_a_akt;
 extern int x_dir_zad;
 extern int x_dir_akt;
+extern int x_hold;
 
 //    Y axis:
 extern int y_en;
@@ -276,6 +277,7 @@ extern float y_a_zad;
 extern float y_a_akt;
 extern int y_dir_zad;
 extern int y_dir_akt;
+extern int y_hold;
 
 extern float K;      // [mm/imp]
 extern int Max_Freq_Div;  // ~200[mm/s]
@@ -284,6 +286,17 @@ extern float Max_Position_X;
 extern float Max_Position_Y;
 extern float Max_V_X;
 extern float Max_V_Y;
+
+extern float K;      // [mm/imp]
+extern int Max_Freq_Div;  // [-] ~200[mm/s]
+extern int Min_Freq_Div;  // [-] ~200[mm/s]
+extern int Max_Freq;  // [Hz] ~200[mm/s]
+extern float Max_V_X;
+extern float Min_V_X;
+extern float Max_V_Y;
+extern float Min_V_Y;
+extern float Max_Position_X;
+extern float Max_Position_Y;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -306,6 +319,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         // 100 [Hz] check/set actual velocity
         {
             x_freq_div = set_v_x();
+            if ( x_freq_div == Min_Freq_Div ) {
+                x_hold = 1;
+            } else {
+                x_hold = 0;
+            }
 #if 0
             y_freq_div = set_v_y();
 #endif
