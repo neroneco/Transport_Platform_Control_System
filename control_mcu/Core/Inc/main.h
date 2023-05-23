@@ -117,6 +117,7 @@ void Error_Handler(void);
 /* USER CODE BEGIN Private defines */
 
 typedef struct {
+    float adc_pos[2];
     float pos[2];
     float vel[2];
     float acc[2];

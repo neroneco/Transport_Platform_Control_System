@@ -37,7 +37,7 @@ void motor_start_stop_x( int toggle ) {
 
 
 // Set direction based on desired position
-int set_motor_direction_x( int steps_des, int steps_act ) {
+int set_motor_direction( int steps_des, int steps_act ) {
     int direction;
     if (steps_des > steps_act) {
         direction = DIR_PLUS;
@@ -58,16 +58,6 @@ void motor_start_stop_y( int toggle ) {
 }
 
 
-// Set direction based on desired position
-int set_motor_direction_y( int steps_des, int steps_act ) {
-    int direction;
-    if (steps_des > steps_act) {
-        direction = DIR_PLUS;
-    } else {
-        direction = DIR_MINUS;
-    }
-    return direction;
-}
 
 
 // Make step (CHANGES GLOBAL VARIABLES)
@@ -83,12 +73,14 @@ void make_step_x( void ) {
     iter %= x_freq_div;
     if ( !iter ){
         if ( !x_hold ) {
-            if (x_step_zad != x_step_akt) {
 
                 HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
 
                 // one step takes two iterations
-                if ( iter % 2 ) {
+                static int step_iter;
+                step_iter++;
+                step_iter %= 2;
+                if ( step_iter ) {
                     switch (x_dir_akt){
                         case DIR_PLUS:
                             x_step_akt++;
@@ -98,7 +90,6 @@ void make_step_x( void ) {
                             break;
                     }
                 }
-            }
         }
     }
 }
@@ -116,12 +107,14 @@ void make_step_y( void ) {
     iter %= y_freq_div;
     if ( !iter ){
         if ( !y_hold ) {
-            if (y_step_zad != y_step_akt) {
 
                 HAL_GPIO_TogglePin(X_STEP_GPIO_Port, X_STEP_Pin);
 
                 // one step takes two iterations
-                if ( iter % 2 ) {
+                static int step_iter;
+                step_iter++;
+                step_iter %= 2;
+                if ( step_iter ) {
                     switch (y_dir_akt){
                         case DIR_PLUS:
                             y_step_akt++;
@@ -131,7 +124,6 @@ void make_step_y( void ) {
                             break;
                     }
                 }
-            }
         }
     }
 }
@@ -142,10 +134,11 @@ extern float x_a_zad;
 extern float x_a_akt;
 extern int   x_dir_zad;
 int set_v_x( void ) {
+    //int x_dist = abs( x_step_zad - x_step_akt );
     // decelerate first if direction changed
     if ( x_dir_akt != x_dir_zad ) {
         // change direction but first decelerate
-        if (x_v_akt > 5.0) {
+        if (x_v_akt > 1.0) {
             x_v_akt = x_v_akt - x_a_akt*0.01;
         } else {
             // change direction;
@@ -181,6 +174,57 @@ int set_v_x( void ) {
     }
     return convert_velocity_to_freq_div( x_v_akt );
 }
+
+int set_v_x_ALT( void ) {
+    int s_decel = convert_position_to_steps( 0.50*((Max_V_X * Max_V_X) / ((float)x_a_akt)) );
+    int dist_remain = abs( x_step_zad - x_step_akt );
+    x_dir_zad = set_motor_direction( x_step_zad, x_step_akt );
+
+    // decelerate first if direction changed
+    if ( x_dir_akt != x_dir_zad ) {
+        // change direction but first decelerate
+        if (x_v_akt > 4.0) {
+            x_v_akt = x_v_akt - x_a_akt*0.01;
+        } else {
+            // change direction;
+            switch (x_dir_zad) {
+                case (DIR_PLUS):
+                    HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_SET);
+                    x_dir_akt = DIR_PLUS;
+                    break;
+                case (DIR_MINUS):
+                    HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_RESET);
+                    x_dir_akt = DIR_MINUS;
+                    break;
+            }
+        }
+    } else {
+        float v_lim;
+        if ( dist_remain <= s_decel ) {
+            v_lim = sqrtf( ((float)dist_remain) / ((float)s_decel) ) * Max_V_X;
+        } else if ( dist_remain > s_decel ) {
+            v_lim = Max_V_X;
+        }
+        if ( x_v_akt >= v_lim ) {
+            x_v_akt -= x_a_akt*0.01;
+        } else if ( x_v_akt < v_lim ) {
+            if ( x_v_akt >= x_v_zad ) {
+                x_v_akt -= x_a_akt*0.01;
+            } else if ( x_v_akt < x_v_zad ) {
+                x_v_akt += x_a_akt*0.01;
+            }
+        }
+    }
+
+    // limits
+    if (x_v_akt < 0.0){
+        x_v_akt = 0.0;
+    } else if (x_v_akt > 200.0) {
+        x_v_akt = 200.0;
+    }
+    return convert_velocity_to_freq_div( x_v_akt );
+}
+
 
 extern float y_v_zad;
 extern float y_v_akt;
@@ -241,7 +285,7 @@ float get_max_speed_for_position_x( int steps_actual, int steps_desired ) {
     if ( dif > 2546 ) {
         return Max_V_X;
     }
-    return ((195.0/2546.0)*((float)dif) + 4.0);
+    return ((200.0/2546.0)*((float)dif));
 }
 
 float get_max_speed_for_position_y( int steps_actual, int steps_desired ) {
@@ -319,7 +363,7 @@ int convert_position_to_steps( float position ) {
 
 // converts velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
 int convert_velocity_to_freq_div( float velocity ) {
-    if ( (velocity > 1.0) || (velocity < 200.0) ) {
+    if ( (velocity > 5.0) || (velocity < 200.0) ) {
         float freq = (velocity / K);
         return (Max_Freq / freq);
     } else if (velocity > 200.0) {
@@ -377,22 +421,23 @@ float adc_get_pos_x( uint32_t adc_output) {
     volt_dist = 0.0008056640625f * (float)adc_output;
 
     // Emergancy check
-    if ( (volt_dist > 2.2) || (volt_dist < 0.45) ) {
+    if ( (volt_dist > 2.07) || (volt_dist < 0.54) ) {
         ES_STOP();
     }
 
-    // convert [volts] to [mm]; (exponential approximation)
-    static float a = -319.6;
-    static float b = -0.7314;
-    static float c =  374.9;
-    float pos_approx = a * pow( volt_dist, b ) + c;
-
     // simple digital IIR LP filter (recursive average): f_cutoff ~ 4[Hz]
-    static float alpha = 0.15;
-    static float pos_filtered;
-    pos_filtered = ((1.0-alpha) * pos_filtered) + (alpha * pos_approx);
+    static float alpha = 0.10;
+    static float volt_filtered;
+    volt_filtered = ((1.0-alpha) * volt_filtered) + (alpha * volt_dist);
+    // convert [volts] to [mm]; (exponential approximation)
+    static float a = -315.9;
+    static float b = -0.8679;
+    static float c =  352.7 ;
+    float pos_approx = a * pow( volt_filtered, b ) + c;
 
-    return pos_filtered;
+
+    //return volt_dist;
+    return pos_approx;
 }
 
 
@@ -403,22 +448,23 @@ float adc_get_pos_y( uint32_t adc_output) {
     volt_dist = 0.0008056640625f * (float)adc_output;
 
     // Emergency check
-    if ( (volt_dist > 1.8) || (volt_dist < 0.65) ) {
+    if ( (volt_dist > 2.07) || (volt_dist < 0.89) ) {
         ES_STOP();
     }
 
-    // convert [volts] to [mm]; (exponential approximation)
-    static float a = -230.5;
-    static float b = -0.8702;
-    static float c =  230.7;
-    float pos_approx = a * pow( volt_dist, b ) + c;
-
     // simple digital IIR LP filter (recursive average): f_cutoff ~ 4[Hz]
-    static float alpha = 0.15;
-    static float pos_filtered;
-    pos_filtered = ((1.0-alpha) * pos_filtered) + (alpha * pos_approx);
+    static float alpha = 0.10;
+    static float volt_filtered;
+    volt_filtered = ((1.0-alpha) * volt_filtered) + (alpha * volt_dist);
 
-    return pos_filtered;
+    // convert [volts] to [mm]; (exponential approximation)
+    static float a = -260.9;
+    static float b = -1.094;
+    static float c =  202.6;
+    float pos_approx = a * pow( volt_filtered, b ) + c;
+
+    //return volt_filtered;
+    return pos_approx;
 }
 
 

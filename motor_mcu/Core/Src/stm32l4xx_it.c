@@ -265,6 +265,7 @@ extern float x_a_akt;
 extern int x_dir_zad;
 extern int x_dir_akt;
 extern int x_hold;
+extern float adc_pos_x;
 
 //    Y axis:
 extern int y_en;
@@ -278,6 +279,8 @@ extern float y_a_akt;
 extern int y_dir_zad;
 extern int y_dir_akt;
 extern int y_hold;
+extern float adc_pos_y;
+
 
 extern float K;      // [mm/imp]
 extern int Max_Freq_Div;  // ~200[mm/s]
@@ -316,9 +319,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         HAL_GPIO_TogglePin(st_UART_GPIO_Port, st_UART_Pin);
         HAL_TIM_Base_Stop_IT(&htim6);
 
+
         // 100 [Hz] check/set actual velocity
-        {
-            x_freq_div = set_v_x();
+        static int run;
+        if (run) {
+            x_freq_div = set_v_x_ALT();
             if ( x_freq_div == Min_Freq_Div ) {
                 x_hold = 1;
             } else {
@@ -336,36 +341,48 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         adc_iter %= 4;
         if (!adc_iter) {
 
-            static float adc_pos_x;
-            static float adc_pos_y;
+
             adc_pos_x = adc_get_pos_x(adc_out[0]);
             adc_pos_y = adc_get_pos_y(adc_out[1]);
 
             // safety code: turn off motors and signal error status if adc_pos in danger zone
-            if (check_danger_zone(adc_pos_x, Max_Position_X)) {
-                ES_STOP();
-            }
-            if (check_danger_zone(adc_pos_y, Max_Position_Y)) {
-                ES_STOP();
-            }
+//            if (check_danger_zone(adc_pos_x, Max_Position_X)) {
+//                ES_STOP();
+//            }
+//            if (check_danger_zone(adc_pos_y, Max_Position_Y)) {
+//                ES_STOP();
+//            }
 
             static int adc_steps_x;
             static int adc_steps_y;
             adc_steps_x = convert_position_to_steps(adc_pos_x);
             adc_steps_y = convert_position_to_steps(adc_pos_y);
 
+            // get starting position
+            if (!run) {
+                static int start_iter;
+                start_iter++;
+                if (start_iter > 100){
+                    x_step_akt = adc_steps_x;
+                    y_step_akt = adc_steps_y;
+                    run = 1;
+                }
+            }
+
             // check difference in measured position and expected position from steps of stepper motor
             // and swap them if the difference is larger then ~14[mm] (~14[mm] = ~356 steps)
             static int dif_steps_x;
             static int dif_steps_y;
+#if 1
             dif_steps_x = abs(adc_steps_x - x_step_akt);
             dif_steps_y = abs(adc_steps_y - y_step_akt);
-            if ( dif_steps_x > 356 ) {
+            if ( dif_steps_x > 807 ) {
                 x_step_akt = adc_steps_x;
             }
-            if ( dif_steps_y > 356 ) {
+            if ( dif_steps_y > 807 ) {
                 y_step_akt = adc_steps_y;
             }
+#endif
         }
 
         HAL_ADC_Start_DMA(&hadc1, adc_out, 2);
@@ -397,19 +414,24 @@ void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
 extern motor_status_struct OUT_motor_status;
 extern motor_status_struct IN_motor_status;
 
-
+extern int x_s_accel;
+extern int x_s_v_zad;
+extern int x_s_decel;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     static int i = 0;
     i++;
+    OUT_motor_status.adc_pos[0] = adc_pos_x;
     OUT_motor_status.pos[0] = convert_steps_to_position( x_step_akt );
     OUT_motor_status.vel[0] = x_v_akt;
     OUT_motor_status.acc[0] = 50.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
+    OUT_motor_status.adc_pos[1] = adc_pos_y;
     OUT_motor_status.pos[1] = convert_steps_to_position( y_step_akt );
     OUT_motor_status.vel[1] = y_v_akt;
     OUT_motor_status.acc[1] = 20.0*sin(2.0*M_PI*0.001*i + 2.0*M_PI/3.0);
     OUT_motor_status.en[0]  = x_en;
     OUT_motor_status.en[1]  = y_en;
+
     // convert position in (float)[mm]   to position in steps (int)[steps]
     // convert velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
     x_step_zad = convert_position_to_steps( IN_motor_status.pos[0] );
@@ -419,10 +441,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     y_step_zad = convert_position_to_steps( IN_motor_status.pos[1] );
     y_v_zad    = IN_motor_status.vel[1];
     y_en       = IN_motor_status.en[1];
-
-    // Set direction based on desired position
-    x_dir_zad = set_motor_direction_x( x_step_zad, x_step_akt );
-    y_dir_zad = set_motor_direction_y( y_step_zad, y_step_akt );
 
     // EN bit: if high motor inactive
     //         if low  motor active

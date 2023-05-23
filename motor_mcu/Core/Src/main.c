@@ -81,7 +81,7 @@ motor_status_struct IN_motor_status  = {0};
 
 // Global variables
 
-const float K = 0.0393;      // [mm/imp]
+const float K = 0.0372;      // [mm/imp]
 const int Max_Freq_Div  = 5;  // [-] ~200[mm/s]
 const int Min_Freq_Div  = 1000;  // [-] ~200[mm/s]
 const int Max_Freq      = 25000;  // [Hz] ~200[mm/s]
@@ -100,10 +100,11 @@ int x_step_akt = 0;
 float x_v_zad = Min_V_X;
 float x_v_akt = Min_V_X;
 float x_a_zad;
-float x_a_akt = 50.0;
+float x_a_akt = 250.0;
 int x_dir_zad = DIR_MINUS;
 int x_dir_akt = DIR_MINUS;
-int x_hold = 0;
+int x_hold = 1;
+float adc_pos_x = 0.0;
 
 //    Y axis:
 int y_en = DISABLED;
@@ -116,7 +117,8 @@ float y_a_zad;
 float y_a_akt = 400.0;
 int y_dir_zad = DIR_MINUS;
 int y_dir_akt = DIR_MINUS;
-int y_hold = 0;
+int y_hold = 1;
+float adc_pos_y = 0.0;
 /* USER CODE END 0 */
 
 /**

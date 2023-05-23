@@ -273,7 +273,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     static int iter 	= 0 ;
     static int current 	= 0 ;
 
+    Data_Packet[current].carts_pos_adc_x[iter]      = IN_motor_status.adc_pos[0];
     Data_Packet[current].carts_pos_x[iter]          = IN_motor_status.pos[0];
+    Data_Packet[current].carts_pos_adc_y[iter]      = IN_motor_status.adc_pos[1];
     Data_Packet[current].carts_pos_y[iter]          = IN_motor_status.pos[1];
     Data_Packet[current].carts_vel_x[iter]          = IN_motor_status.vel[0];
     Data_Packet[current].carts_vel_y[iter]          = IN_motor_status.vel[1];
