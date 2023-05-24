@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "tcp_server.h"
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -260,10 +261,74 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     OUT_motor_status.acc[1] = 0.0;
     OUT_motor_status.en[1]  = config_packet.y_en;
 
+    static float mov_avg[10];
+    mov_avg[9] = mov_avg[8];
+    mov_avg[8] = mov_avg[7];
+    mov_avg[7] = mov_avg[6];
+    mov_avg[6] = mov_avg[5];
+    mov_avg[5] = mov_avg[4];
+    mov_avg[4] = mov_avg[3];
+    mov_avg[3] = mov_avg[2];
+    mov_avg[2] = mov_avg[1];
+    mov_avg[1] = mov_avg[0];
+    mov_avg[0] = imu.kalman.pitch;
+    float control_pitch = (mov_avg[0] + mov_avg[1] + mov_avg[2] + mov_avg[3] + mov_avg[4] + mov_avg[5] + mov_avg[6] + mov_avg[7] + mov_avg[8] + mov_avg[9] ) / 10.0;
     static int motor_iter;
     motor_iter++;
-    motor_iter %= 4;
+    motor_iter %= 10;
+    static int mode;
+    mode = config_packet.mode;
     if (!motor_iter){
+
+        if ( mode == MANUAL ) { // mode = manual
+
+        } else if ( mode == AUTO ) { // mode = regulate
+//            static float P_pos = 10000.0;
+//            float x_zad = P_pos * ( 0 + control_pitch );
+//            if (control_pitch > 0.2) {
+//                x_zad = -160.0;
+//            } else if (control_pitch < -0.2) {
+//                x_zad =  160.0;
+//            }
+
+            static float P_vel  = 3.0;
+            static float P_acel = 5.0;
+            static float contr[4];
+            contr[3] = contr[2];
+            contr[2] = contr[1];
+            contr[1] = contr[0];
+            contr[0] = control_pitch;
+            float D_contr= (1.0/(6.0*0.05))*(contr[0] + 3.0*contr[1] - 3.0*contr[2] - contr[3]);
+
+            float x_v_zad = P_vel  * fabs(D_contr);
+            float x_a_zad = P_acel * fabs(D_contr);
+            float x_zad;
+            if (D_contr > 0.0){
+                x_zad =  -160.0;
+            } else if (D_contr <= -0.0) {
+                x_zad =  160.0;
+            } else {
+                x_zad = 0.0;
+                x_v_zad = 0.0;
+            }
+            if (x_v_zad > 200.0) {
+                x_v_zad =  200.0;
+            } else if (x_v_zad < 10.0) {
+                x_v_zad = 0.0;
+            }
+            if (x_a_zad > 600.0) {
+                x_a_zad =  600.0;
+            } else if (x_a_zad < 50.0) {
+                x_a_zad = 50.0;
+            }
+            int   x_en = ENABLED;
+
+            OUT_motor_status.pos[0] = x_zad;
+            OUT_motor_status.vel[0] = x_v_zad;
+            OUT_motor_status.acc[0] = x_a_zad;
+            OUT_motor_status.en[0]  = x_en;
+        }
+
         HAL_GPIO_TogglePin(ST_UART_GPIO_Port, ST_UART_Pin);
         HAL_UART_Transmit(&huart4, (uint8_t*)&OUT_motor_status, sizeof(motor_status_struct), 1);
         HAL_UART_Receive( &huart4, (uint8_t*)&IN_motor_status , sizeof(motor_status_struct), 1);

@@ -7,6 +7,7 @@
 #include <string.h>
 
 typedef struct {
+    int mode;
     int x_en;
     int y_en;
     float x_position;
@@ -14,6 +15,11 @@ typedef struct {
     float x_velocity;
     float y_velocity;
 } config_packet_struct;
+
+enum control_mode {
+    AUTO,
+    MANUAL
+};
 
 enum tcp_server_states
 {

@@ -371,11 +371,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
             // check difference in measured position and expected position from steps of stepper motor
             // and swap them if the difference is larger then ~14[mm] (~14[mm] = ~356 steps)
-            static int dif_steps_x;
-            static int dif_steps_y;
+            //static int dif_steps_x;
+            //static int dif_steps_y;
 #if 1
-            dif_steps_x = abs(adc_steps_x - x_step_akt);
-            dif_steps_y = abs(adc_steps_y - y_step_akt);
+            //dif_steps_x = abs(adc_steps_x - x_step_akt);
+            //dif_steps_y = abs(adc_steps_y - y_step_akt);
             //if ( dif_steps_x > 57 ) {
                 x_step_akt = adc_steps_x;
             //}
@@ -435,10 +435,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     // convert position in (float)[mm]   to position in steps (int)[steps]
     // convert velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
     x_step_zad = convert_position_to_steps( IN_motor_status.pos[0] );
+    x_a_akt    = IN_motor_status.acc[0];
     x_v_zad    = IN_motor_status.vel[0];
     x_en       = IN_motor_status.en[0];
 
     y_step_zad = convert_position_to_steps( IN_motor_status.pos[1] );
+    y_a_akt    = IN_motor_status.acc[1];
     y_v_zad    = IN_motor_status.vel[1];
     y_en       = IN_motor_status.en[1];
 

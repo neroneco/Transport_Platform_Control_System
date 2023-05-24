@@ -176,7 +176,10 @@ int set_v_x( void ) {
 }
 
 int set_v_x_ALT( void ) {
-    int s_decel = 4*convert_position_to_steps( ((Max_V_X * Max_V_X) / ((float)x_a_akt)) );
+    static float acel,decel;
+    acel =  4*x_a_akt;
+    decel = 0.5*x_a_akt;
+    int s_decel = convert_position_to_steps( ((Max_V_X * Max_V_X) / (decel)) );
     int dist_remain = abs( x_step_zad - x_step_akt );
     x_dir_zad = set_motor_direction( x_step_zad, x_step_akt );
 
@@ -184,7 +187,7 @@ int set_v_x_ALT( void ) {
     if ( x_dir_akt != x_dir_zad ) {
         // change direction but first decelerate
         if (x_v_akt > 15.0) {
-            x_v_akt = x_v_akt - x_a_akt*0.01;
+            x_v_akt = x_v_akt - decel;
         } else {
             // change direction;
             switch (x_dir_zad) {
@@ -213,12 +216,12 @@ int set_v_x_ALT( void ) {
             v_lim = Max_V_X;
         }
         if ( x_v_akt >= v_lim ) {
-            x_v_akt -= x_a_akt*0.01;
+            x_v_akt -= decel*0.01;
         } else if ( x_v_akt < v_lim ) {
             if ( x_v_akt >= x_v_zad ) {
-                x_v_akt -= x_a_akt*0.01;
+                x_v_akt -= decel*0.01;
             } else if ( x_v_akt < x_v_zad ) {
-                x_v_akt += x_a_akt*0.01;
+                x_v_akt += acel*0.01;
             }
         }
     }
@@ -232,6 +235,65 @@ int set_v_x_ALT( void ) {
     return convert_velocity_to_freq_div( x_v_akt );
 }
 
+int set_v_x_ALT_02( void ) {
+    static float acel,decel;
+    acel =  x_a_akt;
+    decel = 0.1*x_a_akt;
+    int s_decel = convert_position_to_steps( ((Max_V_X * Max_V_X) / (decel)) );
+    int dist_remain = abs( x_step_zad - x_step_akt );
+    x_dir_zad = set_motor_direction( x_step_zad, x_step_akt );
+
+    // decelerate first if direction changed
+    if ( x_dir_akt != x_dir_zad ) {
+        // change direction but first decelerate
+        if (x_v_akt > 15.0) {
+            x_v_akt = x_v_akt - decel*0.01;
+        } else {
+            // change direction;
+            switch (x_dir_zad) {
+                case (DIR_PLUS):
+                    HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_SET);
+                    x_dir_akt = DIR_PLUS;
+                    break;
+                case (DIR_MINUS):
+                    HAL_GPIO_WritePin(X_DIR_GPIO_Port,  X_DIR_Pin ,GPIO_PIN_RESET);
+                    x_dir_akt = DIR_MINUS;
+                    break;
+            }
+        }
+    } else {
+        float v_lim;
+        if ( dist_remain <= s_decel ) {
+            float var = ((float)dist_remain) / ((float)s_decel);
+            if ( var < 0.0500 ) {
+                v_lim = 0.0;
+            } else {
+                //1.01*(var-0.02).^0.5
+                v_lim = 1.04 * powf( (var - 0.05), 0.7 ) * Max_V_X;
+                //v_lim = 1.025 * (var - 0.025) * Max_V_X;
+            }
+        } else if ( dist_remain > s_decel ) {
+            v_lim = Max_V_X;
+        }
+        if ( x_v_akt >= v_lim ) {
+            x_v_akt =  v_lim;
+        } else if ( x_v_akt < v_lim ) {
+            if ( x_v_akt >= x_v_zad ) {
+                x_v_akt = x_v_zad;
+            } else if ( x_v_akt < x_v_zad ) {
+                x_v_akt = x_v_zad;
+            }
+        }
+    }
+
+    // limits
+    if (x_v_akt < 0.0){
+        x_v_akt = 0.0;
+    } else if (x_v_akt > 200.0) {
+        x_v_akt = 200.0;
+    }
+    return convert_velocity_to_freq_div( x_v_akt );
+}
 
 extern float y_v_zad;
 extern float y_v_akt;
