@@ -176,14 +176,14 @@ int set_v_x( void ) {
 }
 
 int set_v_x_ALT( void ) {
-    int s_decel = convert_position_to_steps( 0.50*((Max_V_X * Max_V_X) / ((float)x_a_akt)) );
+    int s_decel = 4*convert_position_to_steps( ((Max_V_X * Max_V_X) / ((float)x_a_akt)) );
     int dist_remain = abs( x_step_zad - x_step_akt );
     x_dir_zad = set_motor_direction( x_step_zad, x_step_akt );
 
     // decelerate first if direction changed
     if ( x_dir_akt != x_dir_zad ) {
         // change direction but first decelerate
-        if (x_v_akt > 4.0) {
+        if (x_v_akt > 15.0) {
             x_v_akt = x_v_akt - x_a_akt*0.01;
         } else {
             // change direction;
@@ -201,7 +201,14 @@ int set_v_x_ALT( void ) {
     } else {
         float v_lim;
         if ( dist_remain <= s_decel ) {
-            v_lim = sqrtf( ((float)dist_remain) / ((float)s_decel) ) * Max_V_X;
+            float var = ((float)dist_remain) / ((float)s_decel);
+            if ( var < 0.0500 ) {
+                v_lim = 0.0;
+            } else {
+                //1.01*(var-0.02).^0.5
+                v_lim = 1.04 * powf( (var - 0.05), 0.7 ) * Max_V_X;
+                //v_lim = 1.025 * (var - 0.025) * Max_V_X;
+            }
         } else if ( dist_remain > s_decel ) {
             v_lim = Max_V_X;
         }
@@ -363,7 +370,7 @@ int convert_position_to_steps( float position ) {
 
 // converts velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
 int convert_velocity_to_freq_div( float velocity ) {
-    if ( (velocity > 5.0) || (velocity < 200.0) ) {
+    if ( (velocity > 10.0) || (velocity < 200.0) ) {
         float freq = (velocity / K);
         return (Max_Freq / freq);
     } else if (velocity > 200.0) {

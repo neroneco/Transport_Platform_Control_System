@@ -376,12 +376,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 #if 1
             dif_steps_x = abs(adc_steps_x - x_step_akt);
             dif_steps_y = abs(adc_steps_y - y_step_akt);
-            if ( dif_steps_x > 807 ) {
+            //if ( dif_steps_x > 57 ) {
                 x_step_akt = adc_steps_x;
-            }
-            if ( dif_steps_y > 807 ) {
+            //}
+            //if ( dif_steps_y > 57 ) {
                 y_step_akt = adc_steps_y;
-            }
+            //}
 #endif
         }
 

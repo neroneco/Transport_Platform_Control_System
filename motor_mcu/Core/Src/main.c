@@ -100,7 +100,7 @@ int x_step_akt = 0;
 float x_v_zad = Min_V_X;
 float x_v_akt = Min_V_X;
 float x_a_zad;
-float x_a_akt = 250.0;
+float x_a_akt = 600.0;
 int x_dir_zad = DIR_MINUS;
 int x_dir_akt = DIR_MINUS;
 int x_hold = 1;
