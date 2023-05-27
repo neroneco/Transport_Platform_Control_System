@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "tcp_server.h"
+#include "pid.h"
 #include <math.h>
 /* USER CODE END Includes */
 
@@ -261,21 +262,47 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     OUT_motor_status.acc[1] = 0.0;
     OUT_motor_status.en[1]  = config_packet.y_en;
 
-    static float mov_avg[10];
-    mov_avg[9] = mov_avg[8];
-    mov_avg[8] = mov_avg[7];
-    mov_avg[7] = mov_avg[6];
-    mov_avg[6] = mov_avg[5];
-    mov_avg[5] = mov_avg[4];
-    mov_avg[4] = mov_avg[3];
-    mov_avg[3] = mov_avg[2];
-    mov_avg[2] = mov_avg[1];
-    mov_avg[1] = mov_avg[0];
+
+
+    static float mov_avg[50];
+    static float   e[4];
+    static float   e_cart;
+    static float D_e;
+
+    // mean
+    float avg = 0.0;
+    for ( int i = 0; i < 49; i++ ) {
+        mov_avg[49-i] = mov_avg[48-i];
+        avg += 0.02*mov_avg[49-i];
+    }
     mov_avg[0] = imu.kalman.pitch;
-    float control_pitch = (mov_avg[0] + mov_avg[1] + mov_avg[2] + mov_avg[3] + mov_avg[4] + mov_avg[5] + mov_avg[6] + mov_avg[7] + mov_avg[8] + mov_avg[9] ) / 10.0;
+    avg += 0.02*mov_avg[0];
+    e[0] = avg;
+
+
+    static float dt = 0.01;
+
+    static float x_f;
+    static float x_v_f;
+    static float x_a_f;
+    static float P_f;
+    static float D_f;
+
+    static float x_sr;
+    static float x_v_sr;
+    static float x_a_sr;
+    static float P_sr;
+    static float I_sr;
+
+    static float x;
+    static float x_v;
+    static float x_a;
+
+    static float raw;
+
     static int motor_iter;
     motor_iter++;
-    motor_iter %= 10;
+    motor_iter %= 2;
     static int mode;
     mode = config_packet.mode;
     if (!motor_iter){
@@ -283,49 +310,59 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         if ( mode == MANUAL ) { // mode = manual
 
         } else if ( mode == AUTO ) { // mode = regulate
-//            static float P_pos = 10000.0;
-//            float x_zad = P_pos * ( 0 + control_pitch );
-//            if (control_pitch > 0.2) {
-//                x_zad = -160.0;
-//            } else if (control_pitch < -0.2) {
-//                x_zad =  160.0;
+
+            // derivative
+            D_e= (1.0/(6.0*dt))*( e[0] + 3.0*e[1] - 3.0*e[2] - e[3] );
+            e[3] = e[2];
+            e[2] = e[1];
+            e[1] = e[0];
+//            if ( (D_e < 2.0) && (D_e > -2.0) ) {
+//                D_e = 0.0;
 //            }
 
-            static float P_vel  = 3.0;
-            static float P_acel = 5.0;
-            static float contr[4];
-            contr[3] = contr[2];
-            contr[2] = contr[1];
-            contr[1] = contr[0];
-            contr[0] = control_pitch;
-            float D_contr= (1.0/(6.0*0.05))*(contr[0] + 3.0*contr[1] - 3.0*contr[2] - contr[3]);
+            //                        P     D
+            //x_f   = PD( -e[0], -D_e, 0.0, 20.0, dt );
 
-            float x_v_zad = P_vel  * fabs(D_contr);
-            float x_a_zad = P_acel * fabs(D_contr);
-            float x_zad;
-            if (D_contr > 0.0){
-                x_zad =  -160.0;
-            } else if (D_contr <= -0.0) {
-                x_zad =  160.0;
+            //e_cart = IN_motor_status.adc_pos[0];
+            //x_v_sr = PI_cart( -e_cart, 0.11, 0.0020, dt );
+            x_v_f = PD_platform( -e[0], -D_e, 1.0, 2.3, dt ); //D = 2.5
+            //x_a_f = PD( -e[0], -D_e, 20.0, 0.0, dt );
+            x_v = x_v_f + x_v_sr;
+            raw = x_v;
+            if (x_v > 0) {
+                x = 160.0;
             } else {
-                x_zad = 0.0;
-                x_v_zad = 0.0;
+                x = -160.0;
             }
-            if (x_v_zad > 200.0) {
-                x_v_zad =  200.0;
-            } else if (x_v_zad < 10.0) {
-                x_v_zad = 0.0;
+            //x = x_f;
+            x_v = fabs(x_v);
+            //x_a = fabs(x_a_f);
+
+            // limits
+            // x
+            if ( x > 160.0 ) {
+                x =  160.0;
+            } else if ( x < -160.0 ) {
+                x = -160.0;
             }
-            if (x_a_zad > 600.0) {
-                x_a_zad =  600.0;
-            } else if (x_a_zad < 50.0) {
-                x_a_zad = 50.0;
+            // v
+            if ( x_v > 200.0 ) {
+                x_v =  200.0;
+            } else if ( x_v < 1.0 ) {
+                x_v = 0.0;
             }
+            // a
+            if ( x_a > 600.0 ) {
+                x_a =  600.0;
+            } else if ( x_a < 0.0 ) {
+                x_a = 0.0;
+            }
+
             int   x_en = ENABLED;
 
-            OUT_motor_status.pos[0] = x_zad;
-            OUT_motor_status.vel[0] = x_v_zad;
-            OUT_motor_status.acc[0] = x_a_zad;
+            OUT_motor_status.pos[0] = x;
+            OUT_motor_status.vel[0] = x_v;
+            OUT_motor_status.acc[0] = x_a;
             OUT_motor_status.en[0]  = x_en;
         }
 
@@ -366,12 +403,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     Data_Packet[current].mpu6886_roll[iter]         = mpu6886.angle.roll;
 
 
-    Data_Packet[current].pitch_no_filter[iter]      = imu.mean.pitch;
-    Data_Packet[current].roll_no_filter[iter]       = imu.mean.roll;
-    Data_Packet[current].pitch_complementary[iter]  = imu.complementary.pitch;
-    Data_Packet[current].roll_complementary[iter]   = imu.complementary.roll;
-    Data_Packet[current].pitch_alfa_beta[iter]      = imu.alfa_beta.pitch;
-    Data_Packet[current].roll_alfa_beta[iter]       = imu.alfa_beta.roll;
+    Data_Packet[current].pitch_no_filter[iter]      = e[0];
+    Data_Packet[current].roll_no_filter[iter]       = x;
+    Data_Packet[current].pitch_complementary[iter]  = -D_e;
+    Data_Packet[current].roll_complementary[iter]   = raw;
+    Data_Packet[current].pitch_alfa_beta[iter]      = 0.0;
+    Data_Packet[current].roll_alfa_beta[iter]       = x_a;
     Data_Packet[current].pitch_kalman[iter]         = imu.kalman.pitch;
     Data_Packet[current].roll_kalman[iter]          = imu.kalman.roll;
     Data_Packet[current].pitch[iter]                = (float)iter;

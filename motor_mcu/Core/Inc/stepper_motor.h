@@ -23,6 +23,7 @@ int  set_motor_direction_y( int steps_des, int steps_act );
 void make_step_x( void );
 void make_step_y( void );
 int set_v_x( void );
+int set_v_x_ALT( void );
 int set_v_y( void );
 
 

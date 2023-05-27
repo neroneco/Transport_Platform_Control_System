@@ -177,8 +177,8 @@ int set_v_x( void ) {
 
 int set_v_x_ALT( void ) {
     static float acel,decel;
-    acel =  4*x_a_akt;
-    decel = 0.5*x_a_akt;
+    acel  = 1000;
+    decel = 1000;
     int s_decel = convert_position_to_steps( ((Max_V_X * Max_V_X) / (decel)) );
     int dist_remain = abs( x_step_zad - x_step_akt );
     x_dir_zad = set_motor_direction( x_step_zad, x_step_akt );
@@ -186,8 +186,8 @@ int set_v_x_ALT( void ) {
     // decelerate first if direction changed
     if ( x_dir_akt != x_dir_zad ) {
         // change direction but first decelerate
-        if (x_v_akt > 15.0) {
-            x_v_akt = x_v_akt - decel;
+        if (x_v_akt > 2.0) {
+            x_v_akt = x_v_akt - decel*0.002;
         } else {
             // change direction;
             switch (x_dir_zad) {
@@ -216,12 +216,12 @@ int set_v_x_ALT( void ) {
             v_lim = Max_V_X;
         }
         if ( x_v_akt >= v_lim ) {
-            x_v_akt -= decel*0.01;
+            x_v_akt -= decel*0.002;
         } else if ( x_v_akt < v_lim ) {
             if ( x_v_akt >= x_v_zad ) {
-                x_v_akt -= decel*0.01;
+                x_v_akt -= decel*0.002;
             } else if ( x_v_akt < x_v_zad ) {
-                x_v_akt += acel*0.01;
+                x_v_akt += acel*0.002;
             }
         }
     }
@@ -304,7 +304,7 @@ int set_v_y( void ) {
     // decelerate first if direction changed
     if ( y_dir_akt != y_dir_zad ) {
         // change direction but first decelerate
-        if (y_v_akt > 5.0) {
+        if (y_v_akt > 3.0) {
             y_v_akt = y_v_akt - y_a_akt*0.01;
         } else {
             // change direction;
@@ -432,7 +432,7 @@ int convert_position_to_steps( float position ) {
 
 // converts velocity in (float)[mm/s] to velocity in steps (int)[steps/s]
 int convert_velocity_to_freq_div( float velocity ) {
-    if ( (velocity > 10.0) || (velocity < 200.0) ) {
+    if ( (velocity > 1.0) || (velocity < 200.0) ) {
         float freq = (velocity / K);
         return (Max_Freq / freq);
     } else if (velocity > 200.0) {

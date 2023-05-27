@@ -314,7 +314,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     // 100 [Hz] speed control
     static int iter;
     iter++;
-    iter %= 500;
+    iter %= 100;
     if (!iter) {
         HAL_GPIO_TogglePin(st_UART_GPIO_Port, st_UART_Pin);
         HAL_TIM_Base_Stop_IT(&htim6);
@@ -338,7 +338,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         // get position from optical sensor and convert them to steps position
         static int adc_iter;
         adc_iter++;
-        adc_iter %= 4;
+        adc_iter %= 25;
         if (!adc_iter) {
 
 
