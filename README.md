@@ -1,4 +1,4 @@
-# Transport Platform Control Systen
+# Transport Platform Control System
 
 Control system for platform transport project written for my master thesis.
 
