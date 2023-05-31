@@ -324,7 +324,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             //x_f   = PD( -e[0], -D_e, 0.0, 20.0, dt );
 
             //e_cart = IN_motor_status.adc_pos[0];
-            //x_v_sr = PI_cart( -e_cart, 0.11, 0.0020, dt );
+            x_v_sr = PI_cart( -e_cart, 0.11, 0.0020, dt );
             x_v_f = PD_platform( -e[0], -D_e, 1.0, 2.3, dt ); //D = 2.5
             //x_a_f = PD( -e[0], -D_e, 20.0, 0.0, dt );
             x_v = x_v_f + x_v_sr;
