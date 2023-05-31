@@ -1,11 +1,24 @@
 # Transport Platform Control Systen
 
-Control system for platform transport written for my master thesis.
+Control system for platform transport project written for my master thesis.
 
 ## Description
 
+Project of a transport platform with vibration reduction system. Vibration reduction is achieved be controling carts position and speed. 
+Orientation of platform is obtained based on data from digital accelerometers/gyroscopes (MPU9250, MPU6886) and filtratration algorithms (e.g. Kalman filter).
+Actual carts position is measured by optical sensors (Sharp GP2Y0A21YK0F).
+STM32 NUCLEO-L476RG board is used for motors control system. It generaters step/dir signals based on data recieved from control MCU (STM32 NUCLEO-F767ZI board) and position measured by optical sensors.
+STM32 NUCLEO-F767ZI board is responsible for: acquiring data from accelerometers/gyroscopes and signal filtration, regulation system, sending steering data to motor control board (STM32 NUCLEO-L476RG board), communication with external PC via Ethernet interface.
+
+
+![image](images/test_stand.jpg)
+*Figure 1. Test stand* 
+
+![image](images/schem_plat.png)
+*Figure 2. Transport Platform* 
+
 ![image](images/schem_sys.png)
-*Figure 1. Diagram of system* 
+*Figure 3. Schematic of system* 
 
 ---
 
