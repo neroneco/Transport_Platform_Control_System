@@ -38,15 +38,15 @@ STM32 NUCLEO-F767ZI board is responsible for: acquiring data from accelerometers
 
 
 * Stepper Motor control MCU ([STM32 NUCLEO-L476RG](https://www.st.com/en/evaluation-tools/nucleo-l476rg.html)):
-    * control_mcu/Core/Src/communication.c -> I2C communication
-    * control_mcu/Core/Src/accelerometers.c -> MPU9250 and MPU6886 init and read/write data
-    * control_mcu/Core/Src/filters.c -> Digital filter implementation:
+    * `control_mcu/Core/Src/communication.c` -> I2C communication
+    * `control_mcu/Core/Src/accelerometers.c` -> MPU9250 and MPU6886 init and read/write data
+    * `control_mcu/Core/Src/filters.c` -> Digital filter implementation:
         * Moving average
         * Complementary
         * Alfa-Beta
         * Kalman
-    * control_mcu/Core/Src/control.c -> data storage and platform control
-    * control_mcu/Core/Src/tcp_server.c -> TCP server (based on [lwip echo server](https://git.savannah.nongnu.org/cgit/lwip/lwip-contrib.git/tree/apps/tcpecho_raw/tcpecho_raw.c))
+    * `control_mcu/Core/Src/control.c` -> data storage and platform control
+    * `control_mcu/Core/Src/tcp_server.c` -> TCP server (based on [lwip echo server](https://git.savannah.nongnu.org/cgit/lwip/lwip-contrib.git/tree/apps/tcpecho_raw/tcpecho_raw.c))
 
 ---
 
